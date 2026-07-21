@@ -1,40 +1,51 @@
 # watch_up_server
-Stock Market Simulator server
 
-## 의존성
-**requirements.txt**
-```
-fastapi==0.128.0
-uvicorn[standard]==0.40.0
+WatchUp의 FastAPI 백엔드 서버입니다. 현재 구현 범위는 기본 애플리케이션 구조와
+프로세스 상태를 확인하는 `GET /api/health`입니다.
 
-yfinance==1.0
+## 로컬 실행
 
-sqlalchemy==2.0.46
-alembic==1.18.3
-psycopg[binary]==3.3.2
+Python 환경을 준비한 뒤 의존성을 설치합니다.
 
-redis==7.1.0
-
-pydantic==2.12.5
-pydantic-settings==2.12.0
-email-validator==2.3.0
-
-PyJWT==2.11.0
-pwdlib[argon2]==0.3.0
-
-httpx==0.28.1
-python-multipart==0.0.22
+```bash
+python -m pip install -r requirements-dev.txt
+cp .env.example .env
 ```
 
-**requirements-dev.txt**
-```
--r requirements.txt
+실제 Supabase 및 Redis 설정값은 현재 단계에서 선택 사항이며 health check에서
+사용하지 않습니다. 실제 secret이 포함된 `.env`는 커밋하지 마세요.
 
-pytest==9.0.2
-pytest-asyncio==1.3.0
-pytest-cov==7.0.0
+개발 서버를 실행합니다.
 
-ruff==0.15.0
-mypy==1.19.1
-pre-commit==4.5.1
+```bash
+uvicorn app.main:app --reload
 ```
+
+애플리케이션 상태는 인증 없이 확인할 수 있습니다.
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+응답은 다음과 같습니다.
+
+```json
+{
+  "data": {
+    "status": "ok"
+  },
+  "meta": null
+}
+```
+
+## 검증
+
+```bash
+pytest
+ruff check .
+mypy app
+python -c "from app.main import app; print(app.title)"
+```
+
+이 단계에서는 JWT 검증, Supabase/Redis 연결, 업비트 호출, 코인 검색 및 관심
+코인 API를 구현하지 않습니다.

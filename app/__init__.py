@@ -1,0 +1,1 @@
+"""WatchUp backend application package."""
