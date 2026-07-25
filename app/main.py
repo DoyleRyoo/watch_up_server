@@ -1,6 +1,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from threading import Lock
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,11 +20,13 @@ ALLOWED_CORS_HEADERS = ["Authorization", "Content-Type"]
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     logger.info("WatchUp application started")
-    # Initialize future shared Redis and HTTP clients here.
+    # Shared network clients are created lazily by their dependencies.
     try:
         yield
     finally:
-        # Close future shared clients here.
+        supabase_http_client = application.state.supabase_http_client
+        if supabase_http_client is not None:
+            supabase_http_client.close()
         logger.info("WatchUp application stopped")
 
 
@@ -31,6 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     active_settings = settings or get_settings()
     application = FastAPI(title="WatchUp API", lifespan=lifespan)
     application.state.settings = active_settings
+    application.state.jwt_verifier = None
+    application.state.jwt_verifier_lock = Lock()
+    application.state.supabase_http_client = None
+    application.state.supabase_http_client_lock = Lock()
 
     application.add_middleware(
         CORSMiddleware,
