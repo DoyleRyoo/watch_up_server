@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     supabase_audience: str = "authenticated"
 
     redis_url: str = ""
+    redis_timeout_seconds: float = Field(default=2, gt=0)
 
     upbit_base_url: str = "https://api.upbit.com"
     upbit_timeout_seconds: float = Field(default=5, gt=0)

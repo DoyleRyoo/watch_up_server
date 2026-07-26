@@ -27,10 +27,12 @@ def test_wildcard_cors_origin_is_rejected() -> None:
 def test_numeric_settings_are_converted() -> None:
     settings = Settings(
         _env_file=None,
+        redis_timeout_seconds="1.25",
         upbit_timeout_seconds="5.5",
         upbit_max_retries="2",
     )
 
+    assert settings.redis_timeout_seconds == 1.25
     assert settings.upbit_timeout_seconds == 5.5
     assert settings.upbit_max_retries == 2
 
@@ -38,6 +40,8 @@ def test_numeric_settings_are_converted() -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
+        {"redis_timeout_seconds": 0},
+        {"redis_timeout_seconds": -1},
         {"upbit_timeout_seconds": 0},
         {"upbit_timeout_seconds": -1},
         {"upbit_max_retries": -1},
