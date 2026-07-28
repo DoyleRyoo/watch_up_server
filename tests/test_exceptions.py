@@ -6,7 +6,7 @@ from app.main import create_app
 
 
 def test_unexpected_exception_uses_common_error_envelope() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
 
     @application.get("/test-error")
     async def raise_unexpected_error() -> None:
@@ -27,7 +27,7 @@ def test_unexpected_exception_uses_common_error_envelope() -> None:
 
 
 def test_http_exception_keeps_fastapi_default_behavior() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
 
     @application.get("/test-http-error")
     async def raise_http_error() -> None:

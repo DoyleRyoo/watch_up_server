@@ -513,6 +513,46 @@ async def test_zero_configured_retries_sends_only_initial_request() -> None:
 
 
 @pytest.mark.asyncio
+async def test_day_candle_request_override_zero_disables_retries() -> None:
+    clock = FakeClock()
+    requests = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        assert request.url.path == "/v1/candles/days"
+        assert dict(request.url.params) == {"market": "KRW-BTC", "count": "30"}
+        return httpx.Response(500)
+
+    async with mocked_upbit_client(handler, clock=clock) as client:
+        with pytest.raises(AppError) as captured:
+            await client.get_day_candles("KRW-BTC", max_retries=0)
+
+    assert captured.value.code is ErrorCode.UPBIT_UNAVAILABLE
+    assert requests == 1
+    assert clock.sleeps == []
+
+
+@pytest.mark.asyncio
+async def test_day_candle_default_keeps_documented_retry_policy() -> None:
+    clock = FakeClock()
+    requests = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(500)
+
+    async with mocked_upbit_client(handler, clock=clock) as client:
+        with pytest.raises(AppError) as captured:
+            await client.get_day_candles("KRW-BTC")
+
+    assert captured.value.code is ErrorCode.UPBIT_UNAVAILABLE
+    assert requests == 3
+    assert clock.sleeps == [0.5, 1]
+
+
+@pytest.mark.asyncio
 async def test_mixed_retryable_errors_never_exceed_three_transmissions() -> None:
     clock = FakeClock()
     requests = 0
@@ -645,6 +685,7 @@ def test_lifespan_creates_one_client_health_is_lazy_and_shutdown_closes() -> Non
     application = create_app(
         Settings(_env_file=None),
         upbit_client_factory=factory,
+        load_markets_on_startup=False,
     )
     assert application.state.upbit_client is None
 
@@ -686,6 +727,7 @@ def test_upbit_close_failure_does_not_skip_existing_lifespan_cleanup() -> None:
     application = create_app(
         Settings(_env_file=None),
         upbit_client_factory=factory,
+        load_markets_on_startup=False,
     )
     supabase_client = SupabaseClientStub()
     application.state.supabase_http_client = supabase_client
@@ -713,6 +755,7 @@ def test_expected_upbit_error_uses_common_envelope_not_internal_500() -> None:
     application = create_app(
         Settings(_env_file=None),
         upbit_client_factory=factory,
+        load_markets_on_startup=False,
     )
 
     @application.get("/test-upbit-error")
@@ -734,9 +777,14 @@ def test_expected_upbit_error_uses_common_envelope_not_internal_500() -> None:
 
 
 def test_production_router_still_has_no_upbit_test_endpoint() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
     api_paths = {
         route.path for route in application.routes if route.path.startswith("/api")
     }
 
-    assert api_paths == {"/api/health"}
+    assert api_paths == {
+        "/api/health",
+        "/api/coins/search",
+        "/api/coins/{marketCode}/chart",
+        "/api/watchlist",
+    }

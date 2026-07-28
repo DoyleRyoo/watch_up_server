@@ -44,6 +44,8 @@ class UpbitDayCandle(_UpbitPriceModel):
     @field_validator("candle_date_time_kst")
     @classmethod
     def validate_candle_date_time_kst(cls, value: str) -> str:
+        if len(value) < 19 or value[10] != "T":
+            raise ValueError("candle_date_time_kst must be ISO 8601 datetime")
         try:
             datetime.fromisoformat(value)
         except ValueError as exc:

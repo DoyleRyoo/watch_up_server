@@ -150,6 +150,8 @@ class UpbitClient:
     async def get_tickers(
         self,
         market_codes: Sequence[str],
+        *,
+        max_retries: int | None = None,
     ) -> list[UpbitTicker]:
         if not market_codes:
             return []
@@ -158,14 +160,21 @@ class UpbitClient:
             params={"markets": ",".join(market_codes)},
             group=RateLimitGroup.TICKER,
             adapter=TypeAdapter(list[UpbitTicker]),
+            max_retries=max_retries,
         )
 
-    async def get_day_candles(self, market_code: str) -> list[UpbitDayCandle]:
+    async def get_day_candles(
+        self,
+        market_code: str,
+        *,
+        max_retries: int | None = None,
+    ) -> list[UpbitDayCandle]:
         return await self._request_list(
             path="v1/candles/days",
             params={"market": market_code, "count": "30"},
             group=RateLimitGroup.CANDLE,
             adapter=TypeAdapter(list[UpbitDayCandle]),
+            max_retries=max_retries,
         )
 
     async def _request_list(
@@ -175,9 +184,17 @@ class UpbitClient:
         params: Mapping[str, str],
         group: RateLimitGroup,
         adapter: TypeAdapter[list[ResponseT]],
+        max_retries: int | None = None,
     ) -> list[ResponseT]:
+        if max_retries is not None and max_retries < 0:
+            raise ValueError("max_retries must not be negative")
+        request_max_retries = (
+            self._max_retries
+            if max_retries is None
+            else min(max_retries, self._max_retries)
+        )
         deadline = self._clock() + TOTAL_REQUEST_BUDGET_SECONDS
-        max_attempts = self._max_retries + 1
+        max_attempts = request_max_retries + 1
         transmissions = 0
         general_retries = 0
         rate_limit_retries = 0
@@ -196,7 +213,7 @@ class UpbitClient:
             except httpx.TransportError as exc:
                 transmissions += 1
                 if (
-                    general_retries >= self._max_retries
+                    general_retries >= request_max_retries
                     or transmissions >= max_attempts
                 ):
                     raise self._unavailable_error() from exc
@@ -228,7 +245,7 @@ class UpbitClient:
 
             if 500 <= status_code < 600:
                 if (
-                    general_retries >= self._max_retries
+                    general_retries >= request_max_retries
                     or transmissions >= max_attempts
                 ):
                     raise self._unavailable_error()

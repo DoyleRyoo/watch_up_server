@@ -56,7 +56,7 @@ EXPECTED_STATUS_CODES = {
 
 
 def _temporary_app() -> FastAPI:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
 
     @application.get("/test-single", response_model=SuccessResponse[SampleData])
     def single_response() -> SuccessResponse[SampleData]:
@@ -262,7 +262,12 @@ def test_production_router_contains_no_test_endpoint(test_app: FastAPI) -> None:
         route.path for route in test_app.routes if route.path.startswith("/api")
     }
 
-    assert api_paths == {"/api/health"}
+    assert api_paths == {
+        "/api/health",
+        "/api/coins/search",
+        "/api/coins/{marketCode}/chart",
+        "/api/watchlist",
+    }
 
 
 def test_undefined_routes_and_methods_keep_framework_behavior() -> None:
@@ -279,7 +284,7 @@ def test_undefined_routes_and_methods_keep_framework_behavior() -> None:
 def test_unexpected_error_does_not_log_or_return_authorization(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
     sensitive_token = "request-token-must-not-leak"
 
     @application.get("/test-unexpected")

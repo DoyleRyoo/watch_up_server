@@ -6,6 +6,9 @@ from typing import Any, Final
 from fastapi import status
 
 
+INVALID_REQUEST_MESSAGE: Final = "요청값이 올바르지 않습니다."
+
+
 class ErrorCode(StrEnum):
     INVALID_REQUEST = "INVALID_REQUEST"
     INVALID_MARKET_CODE = "INVALID_MARKET_CODE"
