@@ -32,6 +32,10 @@ class WatchlistCreatedItem(APIModel):
     created_at: AwareDatetime
 
 
+class WatchlistDeletedItem(APIModel):
+    id: WatchlistId
+
+
 class WatchlistItemResponse(APIModel):
     id: WatchlistId
     market_code: str
@@ -48,5 +52,6 @@ class WatchlistItemResponse(APIModel):
 __all__ = [
     "WatchlistCreateRequest",
     "WatchlistCreatedItem",
+    "WatchlistDeletedItem",
     "WatchlistItemResponse",
 ]

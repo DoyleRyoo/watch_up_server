@@ -267,6 +267,7 @@ def test_production_router_contains_no_test_endpoint(test_app: FastAPI) -> None:
         "/api/coins/search",
         "/api/coins/{marketCode}/chart",
         "/api/watchlist",
+        "/api/watchlist/{id}",
     }
 
 

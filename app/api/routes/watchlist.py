@@ -3,9 +3,9 @@
 from json import JSONDecodeError
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Path, Request, status
 from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
+from pydantic import BeforeValidator, ValidationError
 from supabase import Client
 
 from app.api.dependencies.auth import get_auth_context, get_supabase_client
@@ -15,11 +15,12 @@ from app.api.dependencies.services import (
     get_watchlist_service,
 )
 from app.models.auth import AuthContext
-from app.models.watchlist import WatchlistItem
+from app.models.watchlist import POSTGRES_BIGINT_MAX, WatchlistItem
 from app.schemas.common import ListMeta, ListResponse, SuccessResponse
 from app.schemas.watchlist import (
     WatchlistCreateRequest,
     WatchlistCreatedItem,
+    WatchlistDeletedItem,
     WatchlistItemResponse,
 )
 from app.services.market_list import MarketListService
@@ -32,6 +33,14 @@ AuthenticatedWatchlistCreate: TypeAlias = tuple[
     AuthContext,
     WatchlistCreateRequest,
 ]
+
+
+def _parse_watchlist_id(value: object) -> int:
+    if type(value) is int:
+        return value
+    if not isinstance(value, str) or not value.isascii() or not value.isdigit():
+        raise ValueError("watchlist id must be a decimal integer")
+    return int(value)
 
 
 async def get_authenticated_watchlist_create(
@@ -121,6 +130,34 @@ async def create_watchlist_item(
             english_name=row.english_name,
             created_at=row.created_at,
         ),
+        meta=None,
+    )
+
+
+@router.delete(
+    "/{id}",
+    response_model=SuccessResponse[WatchlistDeletedItem],
+)
+async def delete_watchlist_item(
+    watchlist_id: Annotated[
+        int,
+        Path(alias="id", ge=1, le=POSTGRES_BIGINT_MAX),
+        BeforeValidator(_parse_watchlist_id),
+    ],
+    auth_context: Annotated[AuthContext, Depends(get_auth_context)],
+    supabase_client: Annotated[Client, Depends(get_supabase_client)],
+    watchlist_service: Annotated[
+        WatchlistService,
+        Depends(get_watchlist_service),
+    ],
+) -> SuccessResponse[WatchlistDeletedItem]:
+    deleted_id = watchlist_service.delete_for_user(
+        client=supabase_client,
+        user_id=auth_context.user_id,
+        watchlist_id=watchlist_id,
+    )
+    return SuccessResponse(
+        data=WatchlistDeletedItem(id=deleted_id),
         meta=None,
     )
 

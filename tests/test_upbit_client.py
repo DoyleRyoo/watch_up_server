@@ -787,4 +787,5 @@ def test_production_router_still_has_no_upbit_test_endpoint() -> None:
         "/api/coins/search",
         "/api/coins/{marketCode}/chart",
         "/api/watchlist",
+        "/api/watchlist/{id}",
     }

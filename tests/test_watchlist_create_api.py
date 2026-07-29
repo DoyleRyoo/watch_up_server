@@ -283,9 +283,7 @@ def test_openapi_documents_required_camel_case_request_body() -> None:
     assert set(schema["properties"]) == {"marketCode"}
 
 
-def test_router_registers_only_get_and_post_for_public_watchlist_at_this_stage() -> (
-    None
-):
+def test_router_registers_public_watchlist_routes() -> None:
     application = registration_app(RecordingRepository())
     watchlist_routes = {
         (method, route.path)
@@ -295,6 +293,7 @@ def test_router_registers_only_get_and_post_for_public_watchlist_at_this_stage()
     }
 
     assert watchlist_routes == {
+        ("DELETE", "/api/watchlist/{id}"),
         ("GET", "/api/watchlist"),
         ("POST", "/api/watchlist"),
     }
