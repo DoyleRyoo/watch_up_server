@@ -11,7 +11,7 @@ from app.main import create_app
 @pytest.fixture
 def test_app() -> FastAPI:
     settings = Settings(_env_file=None)
-    return create_app(settings)
+    return create_app(settings, load_markets_on_startup=False)
 
 
 @pytest.fixture

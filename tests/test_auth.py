@@ -14,9 +14,11 @@ from fastapi.testclient import TestClient
 from jwt.algorithms import RSAAlgorithm
 
 from app.api.dependencies.auth import get_auth_context
+from app.api.dependencies.services import get_market_list_service
 from app.core.config import Settings
 from app.main import create_app
 from app.models.auth import AuthContext
+from app.models.market import Market, MarketStatus
 
 
 ISSUER = "https://project.example.com/auth/v1"
@@ -116,7 +118,7 @@ def _protected_app(jwks_url: str) -> FastAPI:
         supabase_issuer=ISSUER,
         supabase_audience=AUDIENCE,
     )
-    application = create_app(settings)
+    application = create_app(settings, load_markets_on_startup=False)
 
     @application.get("/test-auth")
     def test_auth(
@@ -144,7 +146,7 @@ def _assert_auth_error(response: Any, code: str) -> None:
 
 
 def test_health_is_lazy_and_does_not_construct_authentication_resources() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
     assert application.state.jwt_verifier is None
     assert application.state.supabase_http_client is None
 
@@ -423,7 +425,7 @@ def test_invalid_jwks_is_internal_error_not_expired_token(
 
 
 def test_missing_auth_server_settings_are_internal_error() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
 
     @application.get("/test-auth")
     def test_auth(
@@ -439,3 +441,47 @@ def test_missing_auth_server_settings_are_internal_error() -> None:
 
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "INTERNAL_SERVER_ERROR"
+
+
+def test_coin_search_valid_jwt_reaches_service_without_supabase_client(
+    jwks_server: tuple[_JWKSState, str],
+    signing_key: rsa.RSAPrivateKey,
+) -> None:
+    _, jwks_url = jwks_server
+    access_token, _ = _token(signing_key)
+    settings = Settings(
+        _env_file=None,
+        supabase_jwks_url=jwks_url,
+        supabase_issuer=ISSUER,
+        supabase_audience=AUDIENCE,
+    )
+    application = create_app(settings, load_markets_on_startup=False)
+
+    class SearchServiceStub:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        async def search(self, query: str) -> tuple[Market, ...]:
+            self.calls.append(query)
+            return (
+                Market(
+                    market_code="KRW-BTC",
+                    korean_name="비트코인",
+                    english_name="Bitcoin",
+                    status=MarketStatus.ACTIVE,
+                ),
+            )
+
+    service = SearchServiceStub()
+    application.dependency_overrides[get_market_list_service] = lambda: service
+
+    with TestClient(application) as client:
+        response = client.get(
+            "/api/coins/search?query=btc",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["marketCode"] == "KRW-BTC"
+    assert service.calls == ["btc"]
+    assert application.state.supabase_http_client is None

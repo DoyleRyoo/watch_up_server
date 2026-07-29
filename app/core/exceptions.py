@@ -9,6 +9,7 @@ from app.core.errors import (
     AppError,
     AuthenticationError,
     ErrorCode,
+    INVALID_REQUEST_MESSAGE,
 )
 from app.schemas.common import ErrorContent, ErrorResponse
 
@@ -55,7 +56,7 @@ async def validation_exception_handler(
         raise TypeError("Expected RequestValidationError")
     return _error_response(
         code=ErrorCode.INVALID_REQUEST,
-        message="요청값이 올바르지 않습니다.",
+        message=INVALID_REQUEST_MESSAGE,
     )
 
 

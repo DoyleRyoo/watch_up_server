@@ -9,7 +9,7 @@ def test_allowed_origin_preflight_uses_restricted_policy() -> None:
         _env_file=None,
         cors_allowed_origins="http://localhost:5173, https://watchup.example.com",
     )
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
         response = client.options(
             "/api/health",
             headers={
@@ -36,7 +36,7 @@ def test_disallowed_origin_does_not_receive_allow_origin_header() -> None:
         _env_file=None,
         cors_allowed_origins="http://localhost:5173",
     )
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
         response = client.options(
             "/api/health",
             headers={

@@ -140,7 +140,7 @@ def test_auth_context_repr_never_contains_access_token() -> None:
 
 
 def test_shared_http_transport_is_lazy_reused_and_closed_by_lifespan() -> None:
-    application = create_app(Settings(_env_file=None))
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
     seen_clients: list[httpx.Client] = []
 
     @application.get("/test-transport")
