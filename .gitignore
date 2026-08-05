@@ -173,6 +173,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -273,4 +275,4 @@ develop_steps.md
 
 tmp/
 
-# End of https://www.toptal.com/developers/gitignore/api/windows,linux,macos,visualstudiocode,python
+# End of https://www.toptal.com/developers/gitignore/api/windows,linux,macos,visualstudiocode,python

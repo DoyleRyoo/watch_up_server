@@ -7,7 +7,7 @@ from app.main import ALLOWED_CORS_METHODS, create_app
 def test_allowed_origin_preflight_uses_restricted_policy() -> None:
     settings = Settings(
         _env_file=None,
-        cors_allowed_origins="http://localhost:5173, https://watchup.example.com",
+        cors_allowed_origins="http://localhost:8080, https://watchup.example.com",
     )
     with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
         response = client.options(
@@ -34,7 +34,7 @@ def test_allowed_origin_preflight_uses_restricted_policy() -> None:
 def test_disallowed_origin_does_not_receive_allow_origin_header() -> None:
     settings = Settings(
         _env_file=None,
-        cors_allowed_origins="http://localhost:5173",
+        cors_allowed_origins="http://localhost:8080",
     )
     with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
         response = client.options(

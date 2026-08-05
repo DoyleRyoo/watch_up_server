@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     upbit_max_retries: int = Field(default=2, ge=0)
 
     cors_allowed_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173"]
+        default_factory=lambda: ["http://localhost:8080"]
     )
 
     @field_validator("upbit_base_url")
