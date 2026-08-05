@@ -485,3 +485,23 @@ def test_coin_search_valid_jwt_reaches_service_without_supabase_client(
     assert response.json()["data"][0]["marketCode"] == "KRW-BTC"
     assert service.calls == ["btc"]
     assert application.state.supabase_http_client is None
+
+
+def test_openapi_marks_only_health_as_public() -> None:
+    application = create_app(Settings(_env_file=None), load_markets_on_startup=False)
+    schema = application.openapi()
+
+    assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
+        "type": "http",
+        "scheme": "bearer",
+    }
+    assert "security" not in schema["paths"]["/api/health"]["get"]
+    protected_operations = (
+        ("/api/coins/search", "get"),
+        ("/api/watchlist", "get"),
+        ("/api/watchlist", "post"),
+        ("/api/coins/{marketCode}/chart", "get"),
+        ("/api/watchlist/{id}", "delete"),
+    )
+    for path, method in protected_operations:
+        assert schema["paths"][path][method]["security"] == [{"HTTPBearer": []}]

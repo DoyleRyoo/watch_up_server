@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr, field_validator
 
 
 class _UpbitModel(BaseModel):
@@ -12,11 +12,16 @@ class _UpbitModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
+class UpbitMarketEvent(_UpbitModel):
+    warning: StrictBool
+    caution: dict[StrictStr, StrictBool]
+
+
 class UpbitMarket(_UpbitModel):
     market: StrictStr
     korean_name: StrictStr
     english_name: StrictStr
-    market_warning: StrictStr
+    market_event: UpbitMarketEvent
 
 
 class _UpbitPriceModel(_UpbitModel):

@@ -216,7 +216,7 @@ class LifespanMarketSource:
                 market="KRW-BTC",
                 korean_name="비트코인",
                 english_name="Bitcoin",
-                market_warning="NONE",
+                market_event={"warning": False, "caution": {}},
             )
         ]
 

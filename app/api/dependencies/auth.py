@@ -1,7 +1,8 @@
 from typing import Annotated
 
 import httpx
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import Client
 
 from app.clients.supabase import (
@@ -14,22 +15,19 @@ from app.core.security import AuthenticationConfigurationError, JWTVerifier
 from app.models.auth import AuthContext
 
 
-AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def extract_bearer_token(authorization: AuthorizationHeader = None) -> str:
-    if authorization is None:
+def extract_bearer_token(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(bearer_scheme),
+    ] = None,
+) -> str:
+    if credentials is None or credentials.scheme.casefold() != "bearer":
         raise AuthenticationError.required()
-
-    value = authorization.strip()
-    scheme, separator, credentials = value.partition(" ")
-    token = credentials.strip()
-    if (
-        not separator
-        or scheme.casefold() != "bearer"
-        or not token
-        or any(character.isspace() for character in token)
-    ):
+    token = credentials.credentials.strip()
+    if not token or any(character.isspace() for character in token):
         raise AuthenticationError.required()
     return token
 
