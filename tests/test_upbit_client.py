@@ -79,7 +79,7 @@ async def test_endpoint_contract_models_headers_and_shared_client() -> None:
                         "market": "KRW-BTC",
                         "korean_name": "비트코인",
                         "english_name": "Bitcoin",
-                        "market_warning": "NONE",
+                        "market_event": {"warning": False, "caution": {}},
                         "unused": "ignored",
                     }
                 ],
@@ -133,7 +133,7 @@ async def test_endpoint_contract_models_headers_and_shared_client() -> None:
     assert all("access_key" not in request.url.params for request in requests)
 
     assert markets[0].market == "KRW-BTC"
-    assert markets[0].market_warning == "NONE"
+    assert markets[0].market_event.warning is False
     assert tickers[0].trade_price == Decimal("142300000")
     assert tickers[0].signed_change_rate == Decimal("0.0125")
     assert candles[0].candle_date_time_kst == "2026-07-25T09:00:00"
@@ -223,7 +223,23 @@ async def test_attempt_timeout_uses_configured_value_below_cap() -> None:
                 "market": 123,
                 "korean_name": "비트코인",
                 "english_name": "Bitcoin",
-                "market_warning": "NONE",
+                "market_event": {"warning": False, "caution": {}},
+            }
+        ],
+        [
+            {
+                "market": "KRW-BTC",
+                "korean_name": "비트코인",
+                "english_name": "Bitcoin",
+                "market_event": {"warning": "false", "caution": {}},
+            }
+        ],
+        [
+            {
+                "market": "KRW-BTC",
+                "korean_name": "비트코인",
+                "english_name": "Bitcoin",
+                "market_event": {"warning": False, "caution": {"REASON": 1}},
             }
         ],
     ],

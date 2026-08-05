@@ -1,7 +1,7 @@
 """Cached KRW market-list loading and local coin search."""
 
 import logging
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from typing import Final, Protocol
 
 from pydantic import TypeAdapter, ValidationError
@@ -22,10 +22,6 @@ from app.schemas.upbit import UpbitMarket
 
 logger = logging.getLogger("uvicorn.error")
 MAX_SEARCH_RESULTS: Final = 20
-MARKET_STATUS_BY_WARNING: Final[Mapping[str, MarketStatus]] = {
-    "NONE": MarketStatus.ACTIVE,
-    "CAUTION": MarketStatus.CAUTION,
-}
 MARKET_LIST_ADAPTER = TypeAdapter(list[Market])
 
 
@@ -188,7 +184,12 @@ class MarketListService:
             for upbit_market in upbit_markets:
                 if not upbit_market.market.startswith("KRW-"):
                     continue
-                status = MARKET_STATUS_BY_WARNING[upbit_market.market_warning]
+                event = upbit_market.market_event
+                status = (
+                    MarketStatus.CAUTION
+                    if event.warning or any(event.caution.values())
+                    else MarketStatus.ACTIVE
+                )
                 markets.append(
                     Market(
                         market_code=upbit_market.market,
@@ -197,7 +198,7 @@ class MarketListService:
                         status=status,
                     )
                 )
-        except (KeyError, ValidationError):
+        except ValidationError:
             raise AppError(
                 code=ErrorCode.UPBIT_UNAVAILABLE,
                 message=UPBIT_ERROR_MESSAGE,

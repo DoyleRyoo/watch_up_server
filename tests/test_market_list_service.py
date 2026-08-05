@@ -24,13 +24,14 @@ def _upbit_market(
     market: str,
     korean_name: str,
     english_name: str,
-    warning: str = "NONE",
+    warning: bool = False,
+    caution: dict[str, bool] | None = None,
 ) -> UpbitMarket:
     return UpbitMarket(
         market=market,
         korean_name=korean_name,
         english_name=english_name,
-        market_warning=warning,
+        market_event={"warning": warning, "caution": caution or {}},
     )
 
 
@@ -129,7 +130,7 @@ async def test_cache_miss_owner_filters_krw_maps_status_and_stores_ttl() -> None
     source = FakeMarketSource(
         [
             _upbit_market("KRW-BTC", "비트코인", "Bitcoin"),
-            _upbit_market("KRW-XRP", "리플", "XRP", "CAUTION"),
+            _upbit_market("KRW-XRP", "리플", "XRP", True),
             _upbit_market("BTC-ETH", "이더리움", "Ethereum"),
             _upbit_market("USDT-SOL", "솔라나", "Solana"),
         ]
@@ -307,7 +308,7 @@ async def test_redis_lock_failure_without_memory_uses_direct_upbit_fallback() ->
 async def test_invalid_cache_payload_is_not_used_as_hit(payload: str) -> None:
     fake = FakeRedis()
     fake.values[MARKET_LIST_KEY] = payload
-    source = FakeMarketSource([_upbit_market("KRW-XRP", "리플", "XRP", "CAUTION")])
+    source = FakeMarketSource([_upbit_market("KRW-XRP", "리플", "XRP", True)])
     service = MarketListService(
         upbit_client=source,
         redis_cache=RedisCache(fake),
@@ -345,24 +346,30 @@ async def test_invalid_cache_does_not_replace_previous_memory_on_upbit_failure()
     assert service.memory_snapshot == original
 
 
-@pytest.mark.parametrize("warning", ["", "UNKNOWN", "ACTIVE"])
 @pytest.mark.asyncio
-async def test_unknown_upbit_warning_is_not_treated_as_active(warning: str) -> None:
+async def test_arbitrary_caution_flag_maps_to_caution() -> None:
     fake = FakeRedis()
-    source = FakeMarketSource(
-        [_upbit_market("KRW-BTC", "비트코인", "Bitcoin", warning)]
-    )
-    service = MarketListService(
-        upbit_client=source,
-        redis_cache=RedisCache(fake),
-    )
+    source = FakeMarketSource([
+        _upbit_market("KRW-BTC", "비트코인", "Bitcoin", caution={"NEW_REASON": True})
+    ])
+    service = MarketListService(upbit_client=source, redis_cache=RedisCache(fake))
 
-    with pytest.raises(AppError) as exc_info:
-        await service.get_markets()
+    result = await service.get_markets()
 
-    assert exc_info.value.code is ErrorCode.UPBIT_UNAVAILABLE
-    assert MARKET_LIST_LOCK_KEY not in fake.values
-    assert any(command[0] == "eval" for command in fake.commands)
+    assert result[0].status is MarketStatus.CAUTION
+
+
+@pytest.mark.asyncio
+async def test_all_caution_flags_false_maps_to_active() -> None:
+    fake = FakeRedis()
+    source = FakeMarketSource([
+        _upbit_market("KRW-ETH", "이더리움", "Ethereum", caution={"A": False, "B": False})
+    ])
+    service = MarketListService(upbit_client=source, redis_cache=RedisCache(fake))
+
+    result = await service.get_markets()
+
+    assert result[0].status is MarketStatus.ACTIVE
 
 
 @pytest.mark.asyncio
