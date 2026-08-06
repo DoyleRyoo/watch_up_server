@@ -106,8 +106,9 @@ envelope 형식으로 반환합니다.
   - `public.watchlist` 테이블과 사용자별 RLS 정책
 - Upbit 공개 API에 접근 가능한 네트워크
 
-이 저장소에는 Supabase migration 파일이 포함되어 있지 않습니다. 실행 전에
-`public.watchlist`가 다음 컬럼을 제공하도록 별도로 준비해야 합니다.
+재현 가능한 Supabase schema/RLS migration은
+`supabase/migrations/20260805000000_create_watchlist.sql`에 포함되어 있습니다.
+적용 전 대상 프로젝트와 현재 schema를 확인해야 합니다.
 
 | 컬럼 | 기대 형식 및 제약 |
 | --- | --- |
@@ -164,7 +165,7 @@ cp .env.example .env
 | `UPBIT_BASE_URL` | Upbit API base URL | `https://api.upbit.com` |
 | `UPBIT_TIMEOUT_SECONDS` | Upbit 단일 요청 timeout | `5` |
 | `UPBIT_MAX_RETRIES` | Upbit 최대 재시도 횟수 | `2` |
-| `CORS_ALLOWED_ORIGINS` | 허용 origin의 쉼표 구분 목록 | `http://localhost:5173` |
+| `CORS_ALLOWED_ORIGINS` | 허용 origin의 쉼표 구분 목록 | `http://localhost:8080` |
 
 `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`는 모두 같은 프로젝트를
 가리켜야 합니다. 사용자 access token은 서버 설정에 저장하지 않고 각 요청의
@@ -183,8 +184,9 @@ python -m uvicorn app.main:app \
   --port 8000
 ```
 
-`--host 0.0.0.0`은 Docker/devcontainer 외부에서 전달된 포트로 접근하기 위해
-필요합니다. VS Code devcontainer에서는 Ports 탭에서 8000번 포트를 전달하세요.
+`--host 0.0.0.0`은 Docker network의 Edge Nginx가 접근하기 위해 필요합니다.
+통합 개발 환경의 공식 브라우저 주소는 `http://localhost:8080`이며 FastAPI
+`:8000`은 service 내부 주소입니다.
 
 서버 상태와 OpenAPI 문서는 다음 주소에서 확인할 수 있습니다.
 
@@ -241,8 +243,7 @@ anon/publishable key 또는 refresh token을 사용자 access token 대신 보�
 | `GET` | `/api/coins/{marketCode}/chart` | 필요 | 30일 일봉 종가 조회 |
 | `POST` | `/api/watchlist` | 필요 | 관심 코인 등록 |
 | `GET` | `/api/watchlist` | 필요 | 관심목록과 현재가 조회 |
-
-현재 공개 DELETE endpoint는 등록되어 있지 않습니다.
+| `DELETE` | `/api/watchlist/{id}` | 필요 | 관심 코인 삭제 |
 
 #### 코인 검색
 
@@ -421,18 +422,12 @@ python -m pip check
 실제 Supabase RLS, Redis 연결 및 Upbit 응답에 대한 통합 검증은 별도의 개발
 환경에서 수행해야 합니다.
 
-## 현재 알려진 제약
+## 운영 전 외부 검증
 
-- 현재 `UpbitMarket` 외부 모델은 `market_warning` 필드를 요구합니다. 현재
-  Upbit Korea의 `/v1/market/all?is_details=true` 응답이 `market_event`를
-  제공하는 환경에서는 빈 마켓 캐시 갱신이 `UPBIT_UNAVAILABLE`로 실패할 수
-  있습니다. 외부 모델과 상태 매핑의 호환 수정이 필요합니다.
-- `WatchlistRepository`와 `WatchlistService`에는 삭제 메서드가 있지만
-  `DELETE /api/watchlist/{id}` 라우트는 아직 공개되지 않았습니다.
-- 저장소에는 Supabase schema/RLS migration 파일이 포함되어 있지 않습니다.
-- `dockerfile`의 HEALTHCHECK는 `/health`를 조회하지만 실제 health endpoint는
-  `/api/health`입니다. 애플리케이션이 실행 중이어도 Docker가 컨테이너를
-  unhealthy로 표시할 수 있습니다.
+- 실제 Supabase 프로젝트의 migration/RLS 적용 상태
+- 실제 Redis 및 Upbit 연결과 장애 fallback
+- 운영 HTTPS Origin만 포함한 `CORS_ALLOWED_ORIGINS`
+- 운영 이미지의 `/api/health` Docker health 상태
 
 ## 기여 방법
 

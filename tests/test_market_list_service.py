@@ -349,9 +349,9 @@ async def test_invalid_cache_does_not_replace_previous_memory_on_upbit_failure()
 @pytest.mark.asyncio
 async def test_arbitrary_caution_flag_maps_to_caution() -> None:
     fake = FakeRedis()
-    source = FakeMarketSource([
-        _upbit_market("KRW-BTC", "비트코인", "Bitcoin", caution={"NEW_REASON": True})
-    ])
+    source = FakeMarketSource(
+        [_upbit_market("KRW-BTC", "비트코인", "Bitcoin", caution={"NEW_REASON": True})]
+    )
     service = MarketListService(upbit_client=source, redis_cache=RedisCache(fake))
 
     result = await service.get_markets()
@@ -362,9 +362,13 @@ async def test_arbitrary_caution_flag_maps_to_caution() -> None:
 @pytest.mark.asyncio
 async def test_all_caution_flags_false_maps_to_active() -> None:
     fake = FakeRedis()
-    source = FakeMarketSource([
-        _upbit_market("KRW-ETH", "이더리움", "Ethereum", caution={"A": False, "B": False})
-    ])
+    source = FakeMarketSource(
+        [
+            _upbit_market(
+                "KRW-ETH", "이더리움", "Ethereum", caution={"A": False, "B": False}
+            )
+        ]
+    )
     service = MarketListService(upbit_client=source, redis_cache=RedisCache(fake))
 
     result = await service.get_markets()

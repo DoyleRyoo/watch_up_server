@@ -8,13 +8,13 @@ def test_cors_origins_are_split_trimmed_and_empty_values_removed() -> None:
     settings = Settings(
         _env_file=None,
         cors_allowed_origins=(
-            " http://localhost:5173, ,https://watchup.example.com,"
-            "http://localhost:5173 "
+            " http://localhost:8080, ,https://watchup.example.com,"
+            "http://localhost:8080 "
         ),
     )
 
     assert settings.cors_allowed_origins == [
-        "http://localhost:5173",
+        "http://localhost:8080",
         "https://watchup.example.com",
     ]
 
