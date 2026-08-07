@@ -173,6 +173,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -266,4 +268,11 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/windows,linux,macos,visualstudiocode,python
+AGENTS.md
+planning_v1.5.md
+WatchUp_v1.4_functions.md
+develop_steps.md
+
+tmp/
+
+# End of https://www.toptal.com/developers/gitignore/api/windows,linux,macos,visualstudiocode,python
