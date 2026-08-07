@@ -1,3 +1,5 @@
+"""Upbit Quotation 요청의 timeout, 재시도, rate-limit 상태를 한곳에서 관리한다."""
+
 import asyncio
 import logging
 import math
@@ -52,7 +54,7 @@ class _RequestBudgetExceeded(Exception):
 
 
 class UpbitClientResponseError(Exception):
-    """Non-retryable Upbit 4xx awaiting service-level interpretation."""
+    """service 계층에서 안전한 공개 오류로 바꿔야 하는 재시도 불가 4xx."""
 
     def __init__(self, *, status_code: int, group: RateLimitGroup) -> None:
         super().__init__(f"Upbit request rejected with HTTP {status_code}")
@@ -61,6 +63,7 @@ class UpbitClientResponseError(Exception):
 
 
 def parse_remaining_request(value: str | None) -> RemainingRequest:
+    """`Remaining-Req`에서 관측용 group과 초당 잔여량만 안전하게 읽는다."""
     group: str | None = None
     sec: int | None = None
     if value is None:
@@ -98,7 +101,11 @@ def _parse_retry_after(value: str | None) -> float:
 
 
 class UpbitClient:
-    """Shared asynchronous client for Upbit Quotation REST calls."""
+    """프로세스에서 공유하는 비동기 Upbit Quotation REST Client.
+
+    단일 전송 timeout은 최대 5초, 재시도와 대기를 합친 호출 예산은 최대 8초다.
+    `Origin`이나 API key를 추가하지 않으며, Upbit 원본 오류 body도 외부로 넘기지 않는다.
+    """
 
     def __init__(
         self,
@@ -195,6 +202,8 @@ class UpbitClient:
         )
         deadline = self._clock() + TOTAL_REQUEST_BUDGET_SECONDS
         max_attempts = request_max_retries + 1
+        # 429 재시도와 5xx/network 재시도 횟수는 정책이 다르지만, 혼합 오류에서도
+        # 실제 전송은 최초 요청을 포함해 max_attempts를 넘지 않는다.
         transmissions = 0
         general_retries = 0
         rate_limit_retries = 0
@@ -231,6 +240,8 @@ class UpbitClient:
                 return self._parse_response(response, adapter)
 
             if status_code == 418:
+                # Client는 즉시 차단 오류를 알리고 stale 사용 여부는 cache를 아는
+                # price/chart service가 결정한다.
                 raise self._blocked_error()
 
             if status_code == 429:
@@ -272,6 +283,8 @@ class UpbitClient:
         deadline: float,
     ) -> tuple[httpx.Response, float]:
         state = self._rate_limits[group]
+        # 같은 rate-limit group은 lock과 blocked_until을 공유한다. 한 요청의 429가
+        # 확인한 Retry-After를 뒤따르는 동시 요청도 지켜야 추가 차단을 피할 수 있다.
         async with state.lock:
             await self._wait_for_group(state, deadline)
             remaining_budget = deadline - self._clock()

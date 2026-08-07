@@ -1,3 +1,5 @@
+"""Supabase JWKS로 access token의 서명과 필수 claim을 검증한다."""
+
 from collections.abc import Sequence
 from threading import Lock
 from time import monotonic
@@ -26,15 +28,15 @@ MAX_UNKNOWN_KID_CACHE_SIZE: Final[int] = 32
 
 
 class AuthenticationConfigurationError(RuntimeError):
-    """Raised when authentication cannot run because server settings are missing."""
+    """서버 설정 누락으로 인증 자체를 수행할 수 없을 때 발생한다."""
 
 
 class JWTVerificationUnavailableError(RuntimeError):
-    """Raised when the configured JWKS endpoint cannot provide usable keys."""
+    """설정된 JWKS endpoint에서 사용 가능한 공개키를 얻지 못했음을 나타낸다."""
 
 
 class JWTVerifier:
-    """Verify Supabase JWTs against a bounded, cached remote JWKS."""
+    """크기가 제한된 원격 JWKS cache로 Supabase JWT를 검증한다."""
 
     def __init__(
         self,
@@ -72,6 +74,11 @@ class JWTVerifier:
         self._unknown_key_ids: dict[str, float] = {}
 
     def verify(self, access_token: str) -> AuthContext:
+        """검증된 UUID `sub`와 원본 token을 요청 범위 인증 문맥으로 반환한다.
+
+        서명·만료·issuer·audience 중 하나라도 맞지 않으면 payload를 신뢰하지 않는다.
+        만료만 `AUTH_TOKEN_EXPIRED`로 구분하고 나머지 token 오류는 내부 원인을 숨긴다.
+        """
         try:
             header = jwt.get_unverified_header(access_token)
         except InvalidTokenError as exc:
@@ -111,8 +118,8 @@ class JWTVerifier:
         return AuthContext(user_id=user_id, access_token=access_token)
 
     def _find_signing_key(self, key_id: str) -> PyJWK:
-        # PyJWKClient owns the five-minute JWKS cache. The lock prevents concurrent
-        # cache misses from producing duplicate refreshes in this process.
+        # PyJWKClient가 5분 JWKS cache를 소유한다. 이 lock은 같은 프로세스의 동시
+        # cache miss가 Supabase에 중복 갱신 요청을 보내지 않도록 직렬화한다.
         with self._key_lookup_lock:
             now = monotonic()
             unknown_until = self._unknown_key_ids.get(key_id)
@@ -125,8 +132,8 @@ class JWTVerifier:
             if signing_key is not None:
                 return signing_key
 
-            # A new signing key may have appeared after the cached set was loaded.
-            # Refresh exactly once, then reject an unknown kid as an invalid token.
+            # key rotation 가능성 때문에 cache에 없는 kid는 한 번만 강제 갱신한다.
+            # 그래도 없으면 짧게 기억해 임의 kid 요청이 JWKS fetch를 반복하지 못하게 한다.
             refreshed_keys = self._get_signing_keys(refresh=True)
             signing_key = self._match_key(refreshed_keys, key_id)
             if signing_key is None:

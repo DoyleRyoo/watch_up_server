@@ -1,4 +1,4 @@
-"""Redis keys and TTLs shared by WatchUp services."""
+"""WatchUp service가 공유하는 Redis key 이름과 TTL 계약."""
 
 from typing import Final
 
@@ -9,6 +9,7 @@ MARKET_LIST_TTL_SECONDS: Final = 24 * 60 * 60
 PRICE_TTL_SECONDS: Final = 5
 STALE_PRICE_TTL_SECONDS: Final = 60 * 60
 
+# `1d`는 Upbit 일봉 단위를 뜻하며 공개 응답의 기간 표기 `30d`와 역할이 다르다.
 CHART_PERIOD: Final = "1d"
 CHART_TTL_SECONDS: Final = 5 * 60
 STALE_CHART_TTL_SECONDS: Final = 24 * 60 * 60

@@ -1,3 +1,5 @@
+"""검증된 사용자 token으로 RLS가 적용되는 Supabase Data API Client를 만든다."""
+
 from typing import Final
 
 import httpx
@@ -12,7 +14,7 @@ SUPABASE_DATA_API_TIMEOUT_SECONDS: Final[float] = 10
 
 
 class SupabaseConfigurationError(RuntimeError):
-    """Raised when a user-scoped Supabase client cannot be configured."""
+    """사용자 범위 Supabase Client를 구성할 서버 설정이 없을 때 발생한다."""
 
 
 def create_user_supabase_client(
@@ -21,16 +23,15 @@ def create_user_supabase_client(
     auth_context: AuthContext,
     http_client: httpx.Client,
 ) -> Client:
-    """Create an isolated Data API client carrying one verified user token."""
+    """검증된 한 사용자의 token만 전달하는 격리된 Data API Client를 만든다."""
     supabase_url = settings.supabase_url.strip()
     anon_key = settings.supabase_anon_key.strip()
     if not supabase_url or not anon_key:
         raise SupabaseConfigurationError("Supabase Data API settings are incomplete")
 
-    # ClientOptions is the SDK's public construction API. Supplying the user JWT
-    # here keeps the anon key in the apikey header while replacing only the
-    # Authorization credential used by PostgREST/RLS. A fresh options object and
-    # Client are created for every request, so authentication state is never shared.
+    # anon key는 apikey header 역할만 유지하고 Authorization에는 사용자 JWT를 둔다.
+    # 요청마다 새 options와 Client를 만들므로, 공유 HTTP 연결 풀을 사용하더라도
+    # PostgREST/RLS가 판단하는 사용자 인증 상태는 요청 사이에 섞이지 않는다.
     options = ClientOptions(
         headers={
             "Authorization": f"Bearer {auth_context.access_token}",

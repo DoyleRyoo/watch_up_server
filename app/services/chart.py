@@ -1,4 +1,4 @@
-"""Daily chart validation, cache, Upbit fetch, and stale fallback."""
+"""일봉 차트 검증, cache, Upbit 조회와 stale fallback을 담당한다."""
 
 import logging
 import re
@@ -49,7 +49,7 @@ ChartServiceFactory = Callable[
 
 
 class ChartService:
-    """Resolves one validated chart without watchlist or database access."""
+    """watchlist·DB에 접근하지 않고 정확한 KRW 마켓의 차트 하나를 해석한다."""
 
     def __init__(
         self,
@@ -93,6 +93,8 @@ class ChartService:
                 raise exc
             if stale is None:
                 raise exc
+            # 공개 차트 계약에는 `isStale`이 없으므로 같은 ChartSnapshot으로 반환한다.
+            # 필드를 임의로 추가하지 않으며 freshness 표시는 계약 확정이 먼저 필요하다.
             return stale
 
         try:
@@ -108,6 +110,7 @@ class ChartService:
         return snapshot
 
     async def _direct_without_redis(self, market_code: str) -> ChartSnapshot:
+        # Redis 장애 시 cache·lock 없이 재시도까지 허용하면 동시 요청이 Upbit 부하를 키운다.
         logger.warning("Fetching daily chart once without Redis coordination")
         return await self._fetch_chart(market_code, max_retries=0)
 

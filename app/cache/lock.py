@@ -1,4 +1,4 @@
-"""Token-owned Redis locks and bounded cache recheck behavior."""
+"""token 소유권 기반 Redis lock과 제한된 cache 재확인을 제공한다."""
 
 import asyncio
 import logging
@@ -25,11 +25,15 @@ TokenFactory = Callable[[], str]
 
 @dataclass(frozen=True, slots=True)
 class LockLease:
+    """다른 요청이 대신 해제할 수 없는 lock key와 요청별 token의 묶음."""
+
     key: str
     token: str
 
 
 class RedisLockManager:
+    """`SET NX EX`로 획득하고 Lua의 비교 후 삭제로 해제하는 lock 관리자."""
+
     def __init__(
         self,
         cache: RedisCache,
@@ -51,6 +55,7 @@ class RedisLockManager:
         return LockLease(key, token) if acquired else None
 
     async def release(self, lease: LockLease) -> bool:
+        # TTL 만료 뒤 다른 요청이 같은 key를 얻었을 수 있으므로 key만으로 삭제하지 않는다.
         return await self._cache.compare_and_delete(
             key=lease.key,
             expected_value=lease.token,
@@ -79,7 +84,7 @@ async def wait_for_cache_refresh(
     *,
     sleeper: Sleeper = asyncio.sleep,
 ) -> T:
-    """Wait at most 500ms for another lock owner to populate the cache."""
+    """다른 lock 소유자가 cache를 채울 때까지 최대 500ms만 기다린다."""
 
     for _ in range(LOCK_CACHE_RECHECK_ATTEMPTS):
         await sleeper(LOCK_CACHE_RECHECK_INTERVAL_SECONDS)

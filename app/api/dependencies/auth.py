@@ -1,3 +1,5 @@
+"""Bearer JWT 검증과 사용자 범위 Supabase Client를 FastAPI에 제공한다."""
+
 from typing import Annotated
 
 import httpx
@@ -46,6 +48,7 @@ def _authentication_settings(settings: Settings) -> tuple[str, str, str]:
 
 
 def get_jwt_verifier(request: Request) -> JWTVerifier:
+    """프로세스의 JWKS cache를 공유하는 verifier를 지연 생성한다."""
     existing_verifier: JWTVerifier | None = request.app.state.jwt_verifier
     if existing_verifier is not None:
         return existing_verifier
@@ -74,6 +77,7 @@ def get_auth_context(
 
 
 def get_supabase_http_client(request: Request) -> httpx.Client:
+    """연결 풀만 공유하고 사용자 Authorization 상태는 저장하지 않는다."""
     existing_client: httpx.Client | None = request.app.state.supabase_http_client
     if existing_client is not None:
         return existing_client
@@ -93,6 +97,7 @@ def get_supabase_client(
     auth_context: Annotated[AuthContext, Depends(get_auth_context)],
     http_client: Annotated[httpx.Client, Depends(get_supabase_http_client)],
 ) -> Client:
+    """검증된 현재 사용자의 token이 고정된 요청 전용 Data API Client를 만든다."""
     settings: Settings = request.app.state.settings
     return create_user_supabase_client(
         settings=settings,

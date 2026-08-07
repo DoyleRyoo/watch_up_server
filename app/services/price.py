@@ -1,4 +1,4 @@
-"""Bulk current-price cache, ticker refresh, and stale fallback service."""
+"""현재가 일괄 cache, ticker 갱신, stale fallback을 조정한다."""
 
 import logging
 from collections.abc import Callable, Sequence
@@ -42,7 +42,11 @@ PriceServiceFactory = Callable[[UpbitClient, RedisCache], "PriceService"]
 
 
 class PriceService:
-    """Resolves a stable set of market prices with one Redis/Upbit batch flow."""
+    """요청된 마켓 집합을 한 번의 Redis/Upbit batch 흐름으로 해석한다.
+
+    입력 순서대로 중복을 제거하고 fresh cache miss만 Upbit에 묶어 보낸다. 응답에서
+    빠진 마켓은 값을 만들지 않아 상위 watchlist service가 항목별 `PRICE_ERROR`로 격리한다.
+    """
 
     def __init__(
         self,
@@ -123,6 +127,8 @@ class PriceService:
                 stale = await self._read_prices(market_codes, stale=True)
             except RedisUnavailableError:
                 raise exc
+            # 일부 stale만 섞으면 항목마다 서로 다른 시점의 결과가 한 batch 성공처럼
+            # 보이므로, 418 fallback은 요청 집합 전체가 유효할 때만 사용한다.
             if len(stale) != len(market_codes):
                 raise exc
             return stale
@@ -137,6 +143,7 @@ class PriceService:
         self,
         market_codes: tuple[str, ...],
     ) -> dict[str, ResolvedPrice]:
+        # Redis 장애 중에는 분산 lock을 흉내 낼 수 없으므로 재시도 없는 batch 한 번으로 제한한다.
         logger.warning("Fetching ticker prices once without Redis coordination")
         return await self._fetch_quotes(market_codes, max_retries=0)
 

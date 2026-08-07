@@ -1,4 +1,4 @@
-"""Business-facing watchlist persistence and read orchestration service."""
+"""관심 목록 영속성과 마켓·현재가 결합 업무 규칙을 조정한다."""
 
 import re
 from decimal import Decimal
@@ -32,7 +32,7 @@ CHANGE_RATE_PERCENT_MULTIPLIER: Final = Decimal("100")
 
 
 class WatchlistService:
-    """Keeps Supabase details and watchlist business rules behind one boundary."""
+    """Supabase 세부 구현과 관심 목록 업무 규칙을 하나의 service 경계 뒤에 둔다."""
 
     def __init__(self, repository: WatchlistRepository | None = None) -> None:
         self._repository = repository or WatchlistRepository()
@@ -76,10 +76,13 @@ class WatchlistService:
             else {}
         )
 
+        # repository가 보장한 created_at ASC, id ASC 순서대로 결합해 프론트가
+        # 서버 순서를 그대로 기본 선택과 삭제 후 다음 선택에 사용할 수 있게 한다.
         items: list[WatchlistItem] = []
         for row in rows:
             market = market_by_code.get(row.market_code)
             if market is None:
+                # 최신 KRW 목록에서 사라져도 사용자가 직접 삭제하기 전에는 DB 행을 보존한다.
                 items.append(
                     _without_price(row=row, status=WatchlistStatus.UNAVAILABLE)
                 )
@@ -87,6 +90,7 @@ class WatchlistService:
 
             resolved_price = prices.get(row.market_code)
             if resolved_price is None:
+                # ticker 일부 누락은 해당 항목만 PRICE_ERROR로 만들고 정상 가격은 유지한다.
                 items.append(
                     _without_price(row=row, status=WatchlistStatus.PRICE_ERROR)
                 )
@@ -197,6 +201,8 @@ class WatchlistService:
                 message="이미 등록된 코인입니다.",
             )
 
+        # 사전 확인 뒤 동시 INSERT가 들어올 수 있으므로 DB UNIQUE 위반도 add_for_user가
+        # 같은 WATCHLIST_DUPLICATED 계약으로 변환한다.
         return self.add_for_user(
             client=client,
             user_id=user_id,

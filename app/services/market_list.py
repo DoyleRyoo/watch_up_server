@@ -1,4 +1,4 @@
-"""Cached KRW market-list loading and local coin search."""
+"""검증된 KRW 마켓 snapshot을 적재하고 그 안에서 코인을 검색한다."""
 
 import logging
 from collections.abc import Callable, Sequence
@@ -33,7 +33,11 @@ MarketListServiceFactory = Callable[[UpbitClient, RedisCache], "MarketListServic
 
 
 class MarketListService:
-    """Owns one immutable process-local snapshot for a single app worker."""
+    """Redis cache와 worker별 메모리 snapshot을 조정하는 마켓 목록 경계.
+
+    Redis가 정상이면 분산 lock으로 Upbit 갱신을 한 요청에 맡긴다. Redis 장애 중에는
+    마지막 메모리 snapshot을 우선하고, 그것도 없을 때만 Redis 조정 없이 Upbit를 조회한다.
+    """
 
     def __init__(
         self,
@@ -73,6 +77,8 @@ class MarketListService:
                 if lease is None:
                     return await self._wait_for_refresh_owner()
 
+                # lock 대기 전에 다른 요청이 cache를 채웠을 수 있으므로 소유자도
+                # Upbit를 호출하기 직전에 cache를 한 번 더 확인한다.
                 try:
                     cached = await self._read_cached_markets()
                 except RedisUnavailableError:
@@ -98,6 +104,7 @@ class MarketListService:
             return await self._markets_without_redis()
 
     async def search(self, query: str) -> tuple[Market, ...]:
+        """공백을 제거한 검색어로 exact→prefix→contains 순위의 최대 20개를 반환한다."""
         normalized_query = query.strip()
         if not normalized_query:
             raise AppError(
@@ -123,7 +130,7 @@ class MarketListService:
         return tuple(market for _, market in ranked[:MAX_SEARCH_RESULTS])
 
     async def get_market_by_code(self, market_code: str) -> Market | None:
-        """Return only an exact market-code match from the validated snapshot."""
+        """검증된 snapshot에서 대소문자 변환 없는 정확한 market code만 찾는다."""
         return next(
             (
                 market
@@ -185,6 +192,8 @@ class MarketListService:
                 if not upbit_market.market.startswith("KRW-"):
                     continue
                 event = upbit_market.market_event
+                # Upbit의 대표 warning뿐 아니라 caution 세부 flag 중 하나라도 켜지면
+                # 누락 없이 WatchUp의 단일 CAUTION 상태로 축약한다.
                 status = (
                     MarketStatus.CAUTION
                     if event.warning or any(event.caution.values())

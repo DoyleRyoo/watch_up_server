@@ -1,4 +1,4 @@
-"""Async Redis client wrapper with JSON cache primitives."""
+"""공유 비동기 Redis 연결 위에 JSON cache와 lock 원시 연산을 제공한다."""
 
 import json
 from collections.abc import Callable, Sequence
@@ -17,7 +17,7 @@ DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
 
 class RedisUnavailableError(Exception):
-    """Internal infrastructure error raised when a Redis command fails."""
+    """Redis 명령 실패를 외부 상세 없이 service 계층에 알리는 내부 오류."""
 
     def __init__(self, operation: str) -> None:
         super().__init__(f"Redis operation failed: {operation}")
@@ -95,7 +95,11 @@ class AsyncRedis(Protocol):
 
 
 class RedisCache:
-    """One shared async Redis pool plus JSON and lock command primitives."""
+    """하나의 공유 Redis pool에서 JSON cache와 lock 원시 연산을 수행한다.
+
+    이 계층은 장애 정책을 정하지 않고 `RedisUnavailableError`만 전달한다. cache miss,
+    stale fallback, Upbit 직접 호출 여부는 각 business service가 결정한다.
+    """
 
     def __init__(self, client: AsyncRedis) -> None:
         self._client = client
@@ -249,7 +253,7 @@ RedisCacheFactory = Callable[[Settings], RedisCache]
 
 
 def create_redis_cache(settings: Settings) -> RedisCache:
-    """Build a lazy async Redis pool without sending a Redis command."""
+    """Redis 명령을 보내지 않고 지연 연결되는 비동기 pool을 만든다."""
 
     redis_url = settings.redis_url.strip() or DEFAULT_REDIS_URL
     client = Redis.from_url(
@@ -282,6 +286,7 @@ def _decode_json(raw: bytes | str | None) -> tuple[bool, object | None]:
     try:
         return True, cast(object | None, json.loads(raw))
     except (json.JSONDecodeError, TypeError):
+        # 손상되거나 이전 schema인 값은 성공 데이터로 신뢰하지 않고 cache miss로 다룬다.
         return False, None
 
 

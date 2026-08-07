@@ -1,3 +1,5 @@
+"""FastAPI 앱 구성과 프로세스 수명의 외부 연결을 조립한다."""
+
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -32,6 +34,11 @@ ALLOWED_CORS_HEADERS = ["Authorization", "Content-Type"]
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """프로세스별 공유 client와 service를 한 번 만들고 역순으로 정리한다.
+
+    마켓 목록의 초기 적재는 검색 성능을 위한 준비 작업이므로 실패해도 서버 기동과
+    `/api/health`를 막지 않는다. 실제 검색 시 동일 service가 다시 적재를 시도한다.
+    """
     settings: Settings = application.state.settings
     upbit_client = None
     redis_cache = None
@@ -96,6 +103,11 @@ def create_app(
     chart_service_factory: ChartServiceFactory = create_chart_service,
     load_markets_on_startup: bool = True,
 ) -> FastAPI:
+    """설정과 교체 가능한 factory를 연결한 WatchUp 애플리케이션을 만든다.
+
+    factory 인자는 테스트가 실제 Redis·Upbit에 연결하지 않고도 lifespan과 라우팅
+    계약을 검증할 수 있게 하며, 운영에서는 모두 기본 구현을 사용한다.
+    """
     active_settings = settings or get_settings()
     application = FastAPI(title="WatchUp API", lifespan=lifespan)
     application.state.settings = active_settings

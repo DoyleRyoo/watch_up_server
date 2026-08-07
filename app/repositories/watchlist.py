@@ -1,4 +1,4 @@
-"""Supabase repository for user-owned watchlist rows."""
+"""사용자 소유 관심 목록 행을 다루는 Supabase repository."""
 
 from typing import Final
 from uuid import UUID
@@ -20,15 +20,15 @@ POSTGRES_UNIQUE_VIOLATION: Final = "23505"
 
 
 class WatchlistRepositoryError(RuntimeError):
-    """Raised when a watchlist database operation cannot be trusted."""
+    """관심 목록 DB 연산 결과를 신뢰할 수 없을 때 발생한다."""
 
 
 class WatchlistDuplicateError(WatchlistRepositoryError):
-    """Raised when the database UNIQUE constraint rejects an insert."""
+    """DB UNIQUE 제약이 동시 중복 INSERT를 거부했음을 나타낸다."""
 
 
 class WatchlistNotFoundError(WatchlistRepositoryError):
-    """Raised when RLS exposes no row matching a requested deletion."""
+    """RLS를 통과해 삭제할 수 있는 대상 행이 보이지 않음을 나타낸다."""
 
 
 class _DeletedWatchlistRow(BaseModel):
@@ -38,7 +38,11 @@ class _DeletedWatchlistRow(BaseModel):
 
 
 class WatchlistRepository:
-    """Runs user-filtered queries with an already user-scoped client."""
+    """이미 사용자 token이 적용된 Client로 명시적 사용자 filter를 한 번 더 적용한다.
+
+    애플리케이션 filter는 실수를 줄이고 DB RLS는 최종 권한 경계를 담당한다. 일반
+    요청에서 service role로 RLS를 우회하지 않는다.
+    """
 
     def list_by_user(
         self,
@@ -180,6 +184,8 @@ class WatchlistRepository:
 
         data = self._response_data(response)
         if not data:
+            # RLS 때문에 존재하지 않는 id와 타 사용자 소유 id는 모두 보이지 않는다.
+            # 권한 우회 조회를 추가하지 않고 둘 다 공개 404 계약으로 처리한다.
             raise WatchlistNotFoundError(
                 "No visible watchlist row matched the deletion"
             )
