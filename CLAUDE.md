@@ -5,6 +5,7 @@
 
 ## MUST READ FIRST
 
+0. DO NOT READ .env file (MOST IMPORTANT RULE)
 1. `AGENTS.md` (this repo) — commands, layout, contract rules, error codes, API surface.
 2. `../watch_up_infra/docs/develop_steps_v2.2/step_0_overview.md` — build order + global rules.
 3. The current `step_*.md` — the only scope you may implement this turn.
