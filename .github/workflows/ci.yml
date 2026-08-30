@@ -72,7 +72,7 @@ jobs:
             --env UPBIT_BASE_URL=http://127.0.0.1:9 \
             --env UPBIT_TIMEOUT_SECONDS=0.1 \
             --env UPBIT_MAX_RETRIES=0 \
-            --env CORS_ALLOWED_ORIGINS=http://localhost:8080 \
+            --env CORS_ALLOWED_ORIGINS=http://localhost:5173 \
             watch-up-server:ci
 
           cleanup() { docker rm -f watch-up-server-ci >/dev/null 2>&1 || true; }

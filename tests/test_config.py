@@ -8,13 +8,13 @@ def test_cors_origins_are_split_trimmed_and_empty_values_removed() -> None:
     settings = Settings(
         _env_file=None,
         cors_allowed_origins=(
-            " http://localhost:8080, ,https://watchup.example.com,"
-            "http://localhost:8080 "
+            " http://localhost:5173, ,https://watchup.example.com,"
+            "http://localhost:5173 "
         ),
     )
 
     assert settings.cors_allowed_origins == [
-        "http://localhost:8080",
+        "http://localhost:5173",
         "https://watchup.example.com",
     ]
 
@@ -22,6 +22,25 @@ def test_cors_origins_are_split_trimmed_and_empty_values_removed() -> None:
 def test_wildcard_cors_origin_is_rejected() -> None:
     with pytest.raises(ValidationError, match="must not contain"):
         Settings(_env_file=None, cors_allowed_origins="*")
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://*.example.com",
+        "https://watchup.example.com/",
+        "https://watchup.example.com/auth/callback",
+        "https://user:password@watchup.example.com",
+        "ftp://watchup.example.com",
+    ],
+)
+def test_cors_origin_must_be_an_exact_http_origin(origin: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, cors_allowed_origins=origin)
+
+
+def test_cors_has_no_implicit_origin_when_env_is_missing() -> None:
+    assert Settings(_env_file=None).cors_allowed_origins == []
 
 
 def test_numeric_settings_are_converted() -> None:

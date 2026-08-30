@@ -31,9 +31,7 @@ class Settings(BaseSettings):
     upbit_timeout_seconds: float = Field(default=5, gt=0)
     upbit_max_retries: int = Field(default=2, ge=0)
 
-    cors_allowed_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:8080"]
-    )
+    cors_allowed_origins: list[str] = Field(default_factory=list)
 
     @field_validator("upbit_base_url")
     @classmethod
@@ -56,8 +54,22 @@ class Settings(BaseSettings):
             raise ValueError("CORS_ALLOWED_ORIGINS must be a comma-separated string")
 
         origins = [str(origin).strip() for origin in candidates if str(origin).strip()]
-        if "*" in origins:
-            raise ValueError("CORS_ALLOWED_ORIGINS must not contain '*'")
+        for origin in origins:
+            parsed = urlsplit(origin)
+            if "*" in origin:
+                raise ValueError("CORS_ALLOWED_ORIGINS must not contain '*'")
+            if (
+                parsed.scheme not in {"https", "http"}
+                or not parsed.netloc
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.username
+                or parsed.password
+            ):
+                raise ValueError(
+                    "CORS_ALLOWED_ORIGINS entries must be exact HTTP(S) origins"
+                )
 
         return list(dict.fromkeys(origins))
 
