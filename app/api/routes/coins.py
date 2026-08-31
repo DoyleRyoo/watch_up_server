@@ -5,13 +5,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 
 from app.api.dependencies.auth import get_auth_context
-from app.api.dependencies.services import get_chart_service, get_market_list_service
+from app.api.dependencies.services import (
+    get_chart_service,
+    get_market_list_service,
+    get_price_service,
+)
 from app.models.auth import AuthContext
 from app.schemas.chart import (
     ChartCandleResponse,
     ChartDataResponse,
     ChartResponse,
 )
+from app.services.price import PriceService
 from app.schemas.coin import CoinSearchItem
 from app.schemas.common import ListMeta, ListResponse
 from app.services.chart import ChartService
@@ -46,9 +51,10 @@ async def get_coin_chart(
     market_code: Annotated[str, Path(alias="marketCode")],
     auth_context: Annotated[AuthContext, Depends(get_auth_context)],
     service: Annotated[ChartService, Depends(get_chart_service)],
+    price_service: Annotated[PriceService, Depends(get_price_service)],
 ) -> ChartResponse:
     del auth_context
-    snapshot = await service.get_chart(market_code)
+    snapshot = await service.get_chart_page(market_code, price_service)
     candles = [
         ChartCandleResponse(
             date=candle.date,
@@ -59,6 +65,11 @@ async def get_coin_chart(
     return ChartResponse(
         data=ChartDataResponse(
             market_code=snapshot.market_code,
+            korean_name=snapshot.korean_name,
+            english_name=snapshot.english_name,
+            market_status=snapshot.market_status,
+            current_price=snapshot.current_price,
+            price_status=snapshot.price_status,
             period=snapshot.period,
             candles=candles,
         ),

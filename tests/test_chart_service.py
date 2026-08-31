@@ -19,6 +19,7 @@ from app.models.chart import ChartCandle, ChartSnapshot
 from app.models.market import Market, MarketStatus
 from app.schemas.upbit import UpbitDayCandle
 from app.services.chart import ChartService
+from app.services.price import DisplayPrice, PriceStatus
 from tests.test_redis_cache import FakeRedis
 
 
@@ -87,6 +88,16 @@ class FakeCandleSource:
         if self.error is not None:
             raise self.error
         return list(self.candles)
+
+
+class FakeDisplayPriceService:
+    def __init__(self, result: DisplayPrice) -> None:
+        self.result = result
+        self.calls: list[str] = []
+
+    async def get_display_price(self, market_code: str) -> DisplayPrice:
+        self.calls.append(market_code)
+        return self.result
 
 
 def make_service(
@@ -330,8 +341,43 @@ async def test_418_without_valid_stale_preserves_blocked(
 
     with pytest.raises(AppError) as captured:
         await make_service(FakeCandleSource(error=blocked), redis).get_chart("KRW-BTC")
-
     assert captured.value.code is ErrorCode.UPBIT_TEMPORARILY_BLOCKED
+
+
+@pytest.mark.asyncio
+async def test_chart_page_keeps_unavailable_market_and_stale_price_independent() -> (
+    None
+):
+    unavailable = BTC.model_copy(update={"status": MarketStatus.UNAVAILABLE})
+    price = FakeDisplayPriceService(DisplayPrice(Decimal("99.125"), PriceStatus.STALE))
+    result = await make_service(
+        FakeCandleSource([candle(1, 3)]),
+        FakeRedis(),
+        FakeMarketListService(unavailable),
+    ).get_chart_page("KRW-BTC", price)  # type: ignore[arg-type]
+
+    assert result.market_status is MarketStatus.UNAVAILABLE
+    assert result.current_price == Decimal("99.125")
+    assert result.price_status is PriceStatus.STALE
+    assert len(result.candles) == 1
+    assert price.calls == ["KRW-BTC"]
+
+
+@pytest.mark.asyncio
+async def test_chart_page_isolates_candle_failure_and_price_error() -> None:
+    candle_failure = AppError(
+        code=ErrorCode.UPBIT_UNAVAILABLE,
+        message="safe failure",
+    )
+    price = FakeDisplayPriceService(DisplayPrice(None, PriceStatus.PRICE_ERROR))
+    result = await make_service(
+        FakeCandleSource(error=candle_failure),
+        FakeRedis(),
+    ).get_chart_page("KRW-BTC", price)  # type: ignore[arg-type]
+
+    assert result.candles == ()
+    assert result.current_price is None
+    assert result.price_status is PriceStatus.PRICE_ERROR
 
 
 @pytest.mark.asyncio

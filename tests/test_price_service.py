@@ -18,7 +18,7 @@ from app.clients.upbit import RateLimitGroup, UpbitClientResponseError
 from app.core.errors import AppError, ErrorCode
 from app.models.price import PriceQuote
 from app.schemas.upbit import UpbitTicker
-from app.services.price import PriceService
+from app.services.price import PriceService, PriceStatus
 from tests.test_redis_cache import FakeRedis
 
 
@@ -347,3 +347,42 @@ async def test_cancellation_propagates_and_releases_owned_lock() -> None:
 
     assert TICKER_REFRESH_LOCK_KEY not in redis.values
     assert any(command[0] == "eval" for command in redis.commands)
+
+
+@pytest.mark.asyncio
+async def test_display_price_reports_fresh_and_stale_without_market_status() -> None:
+    fresh = await make_service(FakeTickerSource([BTC]), FakeRedis()).get_display_price(
+        "KRW-BTC"
+    )
+
+    stale_redis = FakeRedis()
+    put_stale(stale_redis, BTC)
+    blocked = AppError(
+        code=ErrorCode.UPBIT_TEMPORARILY_BLOCKED,
+        message="safe blocked",
+    )
+    stale = await make_service(
+        FakeTickerSource(error=blocked),
+        stale_redis,
+    ).get_display_price("KRW-BTC")
+
+    assert fresh.current_price == Decimal("142300000")
+    assert fresh.status is PriceStatus.FRESH
+    assert stale.current_price == Decimal("142300000")
+    assert stale.status is PriceStatus.STALE
+
+
+@pytest.mark.asyncio
+async def test_display_price_converts_lookup_failure_to_item_error() -> None:
+    failure = AppError(
+        code=ErrorCode.UPBIT_RATE_LIMITED,
+        message="safe rate limit",
+    )
+
+    result = await make_service(
+        FakeTickerSource(error=failure),
+        FakeRedis(),
+    ).get_display_price("KRW-BTC")
+
+    assert result.current_price is None
+    assert result.status is PriceStatus.PRICE_ERROR

@@ -2,6 +2,9 @@
 
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from decimal import Decimal
+from enum import StrEnum
 from typing import Protocol
 
 from pydantic import ValidationError
@@ -27,6 +30,18 @@ from app.schemas.upbit import UpbitTicker
 
 
 logger = logging.getLogger("uvicorn.error")
+
+
+class PriceStatus(StrEnum):
+    FRESH = "FRESH"
+    STALE = "STALE"
+    PRICE_ERROR = "PRICE_ERROR"
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayPrice:
+    current_price: Decimal | None
+    status: PriceStatus
 
 
 class TickerSource(Protocol):
@@ -101,6 +116,20 @@ class PriceService:
                 return resolved
         except RedisUnavailableError:
             return resolved | await self._direct_without_redis(missing)
+
+    async def get_display_price(self, market_code: str) -> DisplayPrice:
+        """차트·보유 화면용 단일 현재가를 항목 단위 상태로 해석한다."""
+        try:
+            resolved = (await self.get_prices((market_code,))).get(market_code)
+        except AppError:
+            return DisplayPrice(current_price=None, status=PriceStatus.PRICE_ERROR)
+
+        if resolved is None:
+            return DisplayPrice(current_price=None, status=PriceStatus.PRICE_ERROR)
+        return DisplayPrice(
+            current_price=resolved.quote.trade_price,
+            status=PriceStatus.STALE if resolved.is_stale else PriceStatus.FRESH,
+        )
 
     async def _wait_for_owner(
         self,
@@ -238,8 +267,10 @@ def create_price_service(
 
 
 __all__ = [
+    "DisplayPrice",
     "PriceService",
     "PriceServiceFactory",
+    "PriceStatus",
     "TickerSource",
     "create_price_service",
 ]

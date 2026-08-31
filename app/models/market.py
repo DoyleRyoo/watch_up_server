@@ -16,6 +16,7 @@ MarketCode = Annotated[
 class MarketStatus(StrEnum):
     ACTIVE = "ACTIVE"
     CAUTION = "CAUTION"
+    UNAVAILABLE = "UNAVAILABLE"
 
 
 class Market(BaseModel):

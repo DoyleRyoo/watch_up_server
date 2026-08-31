@@ -3,8 +3,10 @@
 import logging
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Final, Protocol
+from decimal import Decimal
+from typing import Final, Literal, Protocol
 
 from pydantic import ValidationError
 
@@ -22,9 +24,13 @@ from app.clients.upbit import (
 )
 from app.core.errors import AppError, ErrorCode
 from app.models.chart import CHART_RESPONSE_PERIOD, ChartCandle, ChartSnapshot
-from app.models.market import MARKET_CODE_PATTERN as MARKET_CODE_PATTERN_TEXT
+from app.models.market import (
+    MARKET_CODE_PATTERN as MARKET_CODE_PATTERN_TEXT,
+    MarketStatus,
+)
 from app.schemas.upbit import UpbitDayCandle
 from app.services.market_list import MarketListService
+from app.services.price import PriceService, PriceStatus
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -48,6 +54,18 @@ ChartServiceFactory = Callable[
 ]
 
 
+@dataclass(frozen=True, slots=True)
+class ChartPageSnapshot:
+    market_code: str
+    korean_name: str
+    english_name: str
+    market_status: MarketStatus
+    current_price: Decimal | None
+    price_status: PriceStatus
+    period: Literal["30d"]
+    candles: tuple[ChartCandle, ...]
+
+
 class ChartService:
     """DB에 접근하지 않고 정확한 KRW 마켓의 차트 하나를 해석한다."""
 
@@ -69,6 +87,40 @@ class ChartService:
         if market is None:
             raise _invalid_market_code()
 
+        return await self._get_chart_for_valid_market(market_code)
+
+    async def get_chart_page(
+        self,
+        market_code: str,
+        price_service: PriceService,
+    ) -> ChartPageSnapshot:
+        """URL만으로 상세 화면 전체를 구성하고 외부 데이터 실패를 격리한다."""
+        _validate_market_code(market_code)
+        market = await self._market_list_service.get_market_by_code(market_code)
+        if market is None:
+            raise _invalid_market_code()
+
+        try:
+            chart = await self._get_chart_for_valid_market(market_code)
+        except AppError:
+            chart = ChartSnapshot(market_code=market_code, candles=())
+        price = await price_service.get_display_price(market_code)
+
+        return ChartPageSnapshot(
+            market_code=market.market_code,
+            korean_name=market.korean_name,
+            english_name=market.english_name,
+            market_status=market.status,
+            current_price=price.current_price,
+            price_status=price.status,
+            period=chart.period,
+            candles=chart.candles,
+        )
+
+    async def _get_chart_for_valid_market(
+        self,
+        market_code: str,
+    ) -> ChartSnapshot:
         try:
             cached = await self._read_chart(market_code, stale=False)
         except RedisUnavailableError:
@@ -212,6 +264,7 @@ def create_chart_service(
 
 __all__ = [
     "CandleSource",
+    "ChartPageSnapshot",
     "ChartService",
     "ChartServiceFactory",
     "create_chart_service",
