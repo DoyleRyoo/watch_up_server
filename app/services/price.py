@@ -45,7 +45,7 @@ class PriceService:
     """요청된 마켓 집합을 한 번의 Redis/Upbit batch 흐름으로 해석한다.
 
     입력 순서대로 중복을 제거하고 fresh cache miss만 Upbit에 묶어 보낸다. 응답에서
-    빠진 마켓은 값을 만들지 않아 상위 watchlist service가 항목별 `PRICE_ERROR`로 격리한다.
+    빠진 마켓은 값을 만들지 않아 상위 service가 항목별 실패로 격리할 수 있게 한다.
     """
 
     def __init__(

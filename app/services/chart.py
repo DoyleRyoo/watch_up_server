@@ -22,7 +22,7 @@ from app.clients.upbit import (
 )
 from app.core.errors import AppError, ErrorCode
 from app.models.chart import CHART_RESPONSE_PERIOD, ChartCandle, ChartSnapshot
-from app.models.watchlist import MARKET_CODE_PATTERN as MARKET_CODE_PATTERN_TEXT
+from app.models.market import MARKET_CODE_PATTERN as MARKET_CODE_PATTERN_TEXT
 from app.schemas.upbit import UpbitDayCandle
 from app.services.market_list import MarketListService
 
@@ -49,7 +49,7 @@ ChartServiceFactory = Callable[
 
 
 class ChartService:
-    """watchlist·DB에 접근하지 않고 정확한 KRW 마켓의 차트 하나를 해석한다."""
+    """DB에 접근하지 않고 정확한 KRW 마켓의 차트 하나를 해석한다."""
 
     def __init__(
         self,

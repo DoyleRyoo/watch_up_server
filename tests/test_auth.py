@@ -498,10 +498,7 @@ def test_openapi_marks_only_health_as_public() -> None:
     assert "security" not in schema["paths"]["/api/health"]["get"]
     protected_operations = (
         ("/api/coins/search", "get"),
-        ("/api/watchlist", "get"),
-        ("/api/watchlist", "post"),
         ("/api/coins/{marketCode}/chart", "get"),
-        ("/api/watchlist/{id}", "delete"),
     )
     for path, method in protected_operations:
         assert schema["paths"][path][method]["security"] == [{"HTTPBearer": []}]

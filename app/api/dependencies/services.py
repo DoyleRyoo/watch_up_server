@@ -5,7 +5,6 @@ from fastapi import Request
 from app.services.chart import ChartService
 from app.services.market_list import MarketListService
 from app.services.price import PriceService
-from app.services.watchlist import WatchlistService
 
 
 def get_chart_service(request: Request) -> ChartService:
@@ -29,13 +28,8 @@ def get_price_service(request: Request) -> PriceService:
     return service
 
 
-def get_watchlist_service() -> WatchlistService:
-    return WatchlistService()
-
-
 __all__ = [
     "get_chart_service",
     "get_market_list_service",
     "get_price_service",
-    "get_watchlist_service",
 ]

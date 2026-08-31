@@ -1,9 +1,16 @@
 """Validated internal market-list domain models."""
 
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any, Final
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+
+
+MARKET_CODE_PATTERN: Final = r"^KRW-[A-Z0-9]+$"
+MarketCode = Annotated[
+    StrictStr,
+    Field(min_length=5, max_length=20, pattern=MARKET_CODE_PATTERN),
+]
 
 
 class MarketStatus(StrEnum):
@@ -41,4 +48,4 @@ class Market(BaseModel):
         return self.model_dump(mode="json")
 
 
-__all__ = ["Market", "MarketStatus"]
+__all__ = ["MARKET_CODE_PATTERN", "Market", "MarketCode", "MarketStatus"]

@@ -7,8 +7,8 @@ from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.models.market import MarketCode
 from app.models.price import decimal_to_json_number
-from app.models.watchlist import MarketCode
 
 
 CHART_RESPONSE_PERIOD: Final[Literal["30d"]] = "30d"

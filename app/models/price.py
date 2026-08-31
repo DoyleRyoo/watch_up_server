@@ -7,12 +7,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.watchlist import MarketCode
+from app.models.market import MarketCode
 from app.schemas.upbit import UpbitTicker
 
 
 class PriceQuote(BaseModel):
-    """One validated price shared by cache and watchlist services."""
+    """One validated price shared by cache and business services."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
