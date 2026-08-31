@@ -165,7 +165,7 @@ cp .env.example .env
 | `UPBIT_BASE_URL` | Upbit API base URL | `https://api.upbit.com` |
 | `UPBIT_TIMEOUT_SECONDS` | Upbit 단일 요청 timeout | `5` |
 | `UPBIT_MAX_RETRIES` | Upbit 최대 재시도 횟수 | `2` |
-| `CORS_ALLOWED_ORIGINS` | 허용 origin의 쉼표 구분 목록 | `http://localhost:8080` |
+| `CORS_ALLOWED_ORIGINS` | 허용 origin의 쉼표 구분 목록 | `http://localhost:5173` |
 
 `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`는 모두 같은 프로젝트를
 가리켜야 합니다. 사용자 access token은 서버 설정에 저장하지 않고 각 요청의
@@ -184,9 +184,9 @@ python -m uvicorn app.main:app \
   --port 8000
 ```
 
-`--host 0.0.0.0`은 Docker network의 Edge Nginx가 접근하기 위해 필요합니다.
-통합 개발 환경의 공식 브라우저 주소는 `http://localhost:8080`이며 FastAPI
-`:8000`은 service 내부 주소입니다.
+`--host 0.0.0.0`은 Dev Container port forwarding과 Render Web Service가
+프로세스에 접근하기 위해 필요합니다. 로컬 프론트엔드 Origin은
+`http://localhost:5173`이고 API base URL은 `http://localhost:8000/api`입니다.
 
 서버 상태와 OpenAPI 문서는 다음 주소에서 확인할 수 있습니다.
 
