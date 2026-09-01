@@ -4,18 +4,20 @@ from app.core.config import Settings
 from app.main import ALLOWED_CORS_HEADERS, ALLOWED_CORS_METHODS, create_app
 
 
-def test_allowed_origin_preflight_uses_restricted_policy() -> None:
+def test_allowed_origin_preflight_uses_final_policy() -> None:
     settings = Settings(
         _env_file=None,
         cors_allowed_origins="http://localhost:5173, https://watchup.example.com",
     )
     with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
         response = client.options(
-            "/api/health",
+            "/api/paper/trades",
             headers={
                 "Origin": "https://watchup.example.com",
-                "Access-Control-Request-Method": "DELETE",
-                "Access-Control-Request-Headers": "Authorization, Content-Type",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": (
+                    "Authorization, Content-Type, Idempotency-Key"
+                ),
             },
         )
 
@@ -27,10 +29,30 @@ def test_allowed_origin_preflight_uses_restricted_policy() -> None:
         method.strip()
         for method in response.headers["access-control-allow-methods"].split(",")
     }
-    assert returned_methods == set(ALLOWED_CORS_METHODS)
-    assert ALLOWED_CORS_METHODS == ["GET", "POST", "DELETE", "OPTIONS"]
+    returned_headers = response.headers["access-control-allow-headers"].casefold()
+    assert returned_methods == {"GET", "POST", "OPTIONS"}
+    assert ALLOWED_CORS_METHODS == ["GET", "POST", "OPTIONS"]
     assert ALLOWED_CORS_HEADERS == ["Authorization", "Content-Type", "Idempotency-Key"]
+    assert "idempotency-key" in returned_headers
     assert "access-control-allow-credentials" not in response.headers
+
+
+def test_delete_preflight_is_rejected() -> None:
+    settings = Settings(
+        _env_file=None,
+        cors_allowed_origins="https://watchup.example.com",
+    )
+    with TestClient(create_app(settings, load_markets_on_startup=False)) as client:
+        response = client.options(
+            "/api/paper/trades",
+            headers={
+                "Origin": "https://watchup.example.com",
+                "Access-Control-Request-Method": "DELETE",
+            },
+        )
+
+    assert response.status_code == 400
+    assert "DELETE" not in response.headers["access-control-allow-methods"]
 
 
 def test_disallowed_origin_does_not_receive_allow_origin_header() -> None:

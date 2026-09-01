@@ -30,13 +30,14 @@ from app.services.market_list import (
 )
 from app.services.price import PriceServiceFactory, create_price_service
 from app.services.paper_account import PaperAccountService
+from app.services.paper_history import PaperHistoryService
 from app.services.paper_portfolio import PaperPortfolioService
 from app.services.paper_trade import PaperTradeService
 
 
 logger = logging.getLogger("uvicorn.error")
 
-ALLOWED_CORS_METHODS = ["GET", "POST", "DELETE", "OPTIONS"]
+ALLOWED_CORS_METHODS = ["GET", "POST", "OPTIONS"]
 ALLOWED_CORS_HEADERS = ["Authorization", "Content-Type", "Idempotency-Key"]
 
 
@@ -78,6 +79,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         database_pool = await application.state.database_pool_factory(settings)
         application.state.database_pool = database_pool
         if database_pool is not None:
+            application.state.paper_history_service = PaperHistoryService(
+                DatabaseTransactionManager(database_pool, settings.database_role)
+            )
             application.state.paper_portfolio_service = PaperPortfolioService(
                 DatabaseTransactionManager(database_pool, settings.database_role),
                 PaperAccountRepository(),
@@ -157,6 +161,7 @@ def create_app(
     application.state.database_pool = None
     application.state.database_pool_factory = database_pool_factory
     application.state.paper_account_service = None
+    application.state.paper_history_service = None
     application.state.paper_portfolio_service = None
     application.state.paper_trade_service = None
     application.state.load_markets_on_startup = load_markets_on_startup

@@ -139,6 +139,22 @@ class PaperPortfolio(APIModel):
     valuation_status: ValuationStatus
 
 
+class HistoryMeta(APIModel):
+    count: int = Field(ge=0)
+    has_more: bool
+
+
+class PaperHistoryResponse(APIModel):
+    data: list[PaperTransaction]
+    meta: HistoryMeta
+
+    @model_validator(mode="after")
+    def validate_count(self) -> "PaperHistoryResponse":
+        if self.meta.count != len(self.data):
+            raise ValueError("meta.count must match the number of data items")
+        return self
+
+
 class PortfolioMeta(APIModel):
     count: int = Field(ge=0)
 

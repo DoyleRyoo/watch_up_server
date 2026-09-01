@@ -1,15 +1,19 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.services import get_paper_account_service
+from app.api.dependencies.services import get_paper_history_service
 from app.api.dependencies.services import get_paper_portfolio_service
 from app.api.dependencies.services import get_paper_trade_service
 from app.models.auth import AuthContext
 from app.schemas.common import SuccessResponse
 from app.schemas.paper import (
+    BIGINT_MAX,
+    HistoryMeta,
     PaperAccount,
+    PaperHistoryResponse,
     PaperPortfolioResponse,
     PaperTransaction,
     PortfolioMeta,
@@ -18,6 +22,7 @@ from app.schemas.paper import (
 )
 from app.services.idempotency import parse_idempotency_key
 from app.services.paper_account import PaperAccountService
+from app.services.paper_history import PaperHistoryService
 from app.services.paper_portfolio import PaperPortfolioService
 from app.services.paper_trade import PaperTradeService
 
@@ -61,6 +66,22 @@ async def top_up(
     if result.replayed:
         response.status_code = status.HTTP_200_OK
     return SuccessResponse(data=result.transaction)
+
+
+@router.get("/trades", response_model=PaperHistoryResponse)
+async def get_trades(
+    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    service: Annotated[PaperHistoryService, Depends(get_paper_history_service)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    before_id: Annotated[
+        int | None, Query(alias="beforeId", ge=1, le=BIGINT_MAX)
+    ] = None,
+) -> PaperHistoryResponse:
+    page = await service.get_trades(auth.user_id, limit=limit, before_id=before_id)
+    items = list(page.transactions)
+    return PaperHistoryResponse(
+        data=items, meta=HistoryMeta(count=len(items), has_more=page.has_more)
+    )
 
 
 @router.post(
