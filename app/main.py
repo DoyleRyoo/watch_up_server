@@ -15,6 +15,7 @@ from app.cache.redis import (
     create_redis_cache,
 )
 from app.clients.upbit import UpbitClientFactory, create_upbit_client
+from app.clients.upbit_trade_price import TradePriceService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.exceptions import register_exception_handlers
@@ -27,6 +28,7 @@ from app.services.market_list import (
 )
 from app.services.price import PriceServiceFactory, create_price_service
 from app.services.paper_account import PaperAccountService
+from app.services.paper_trade import PaperTradeService
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -75,6 +77,11 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         if database_pool is not None:
             application.state.paper_account_service = PaperAccountService(
                 DatabaseTransactionManager(database_pool, settings.database_role)
+            )
+            application.state.paper_trade_service = PaperTradeService(
+                DatabaseTransactionManager(database_pool, settings.database_role),
+                market_list_service,
+                TradePriceService(upbit_client),
             )
         if application.state.load_markets_on_startup:
             try:
@@ -140,6 +147,7 @@ def create_app(
     application.state.database_pool = None
     application.state.database_pool_factory = database_pool_factory
     application.state.paper_account_service = None
+    application.state.paper_trade_service = None
     application.state.load_markets_on_startup = load_markets_on_startup
     application.state.supabase_http_client_lock = Lock()
 

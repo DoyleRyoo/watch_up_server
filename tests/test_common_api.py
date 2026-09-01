@@ -56,6 +56,9 @@ EXPECTED_STATUS_CODES = {
     ErrorCode.TOP_UP_AMOUNT_OUT_OF_RANGE: 400,
     ErrorCode.TOP_UP_LIFETIME_LIMIT_EXCEEDED: 400,
     ErrorCode.DATABASE_UNAVAILABLE: 503,
+    ErrorCode.MARKET_NOT_TRADABLE: 400,
+    ErrorCode.INSUFFICIENT_CASH_BALANCE: 400,
+    ErrorCode.INSUFFICIENT_HOLDING_QUANTITY: 400,
     ErrorCode.INTERNAL_SERVER_ERROR: 500,
 }
 
@@ -273,6 +276,7 @@ def test_production_router_contains_no_test_endpoint(test_app: FastAPI) -> None:
         "/api/coins/{marketCode}/chart",
         "/api/paper/account",
         "/api/paper/top-ups",
+        "/api/paper/trades",
     }
 
 

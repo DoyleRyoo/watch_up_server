@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, Header, Response, status
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.services import get_paper_account_service
+from app.api.dependencies.services import get_paper_trade_service
 from app.models.auth import AuthContext
 from app.schemas.common import SuccessResponse
-from app.schemas.paper import PaperAccount, PaperTransaction, TopUpRequest
+from app.schemas.paper import PaperAccount, PaperTransaction, TopUpRequest, TradeRequest
 from app.services.idempotency import parse_idempotency_key
 from app.services.paper_account import PaperAccountService
+from app.services.paper_trade import PaperTradeService
 
 router = APIRouter(prefix="/paper", tags=["paper"])
 
@@ -35,6 +37,26 @@ async def top_up(
 ) -> SuccessResponse[PaperTransaction]:
     result = await service.top_up(
         auth.user_id, body.amount_krw, parse_idempotency_key(idempotency_key)
+    )
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return SuccessResponse(data=result.transaction)
+
+
+@router.post(
+    "/trades",
+    response_model=SuccessResponse[PaperTransaction],
+    status_code=status.HTTP_201_CREATED,
+)
+async def trade(
+    body: TradeRequest,
+    response: Response,
+    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    service: Annotated[PaperTradeService, Depends(get_paper_trade_service)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> SuccessResponse[PaperTransaction]:
+    result = await service.trade(
+        auth.user_id, body, parse_idempotency_key(idempotency_key)
     )
     if result.replayed:
         response.status_code = status.HTTP_200_OK
