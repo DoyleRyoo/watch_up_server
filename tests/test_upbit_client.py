@@ -803,6 +803,7 @@ def test_production_router_still_has_no_upbit_test_endpoint() -> None:
         "/api/coins/search",
         "/api/coins/{marketCode}/chart",
         "/api/paper/account",
+        "/api/paper/portfolio",
         "/api/paper/top-ups",
         "/api/paper/trades",
     }

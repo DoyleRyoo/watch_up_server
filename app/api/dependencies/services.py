@@ -5,6 +5,7 @@ from fastapi import Request
 from app.services.chart import ChartService
 from app.services.market_list import MarketListService
 from app.services.paper_account import PaperAccountService
+from app.services.paper_portfolio import PaperPortfolioService
 from app.services.paper_trade import PaperTradeService
 from app.services.price import PriceService
 
@@ -37,6 +38,13 @@ def get_paper_account_service(request: Request) -> PaperAccountService:
     return service
 
 
+def get_paper_portfolio_service(request: Request) -> PaperPortfolioService:
+    service: PaperPortfolioService | None = request.app.state.paper_portfolio_service
+    if service is None:
+        raise RuntimeError("Paper portfolio service is not initialized")
+    return service
+
+
 def get_paper_trade_service(request: Request) -> PaperTradeService:
     service: PaperTradeService | None = request.app.state.paper_trade_service
     if service is None:
@@ -48,6 +56,7 @@ __all__ = [
     "get_chart_service",
     "get_market_list_service",
     "get_paper_account_service",
+    "get_paper_portfolio_service",
     "get_paper_trade_service",
     "get_price_service",
 ]

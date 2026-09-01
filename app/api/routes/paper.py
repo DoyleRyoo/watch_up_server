@@ -4,12 +4,21 @@ from fastapi import APIRouter, Depends, Header, Response, status
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.services import get_paper_account_service
+from app.api.dependencies.services import get_paper_portfolio_service
 from app.api.dependencies.services import get_paper_trade_service
 from app.models.auth import AuthContext
 from app.schemas.common import SuccessResponse
-from app.schemas.paper import PaperAccount, PaperTransaction, TopUpRequest, TradeRequest
+from app.schemas.paper import (
+    PaperAccount,
+    PaperPortfolioResponse,
+    PaperTransaction,
+    PortfolioMeta,
+    TopUpRequest,
+    TradeRequest,
+)
 from app.services.idempotency import parse_idempotency_key
 from app.services.paper_account import PaperAccountService
+from app.services.paper_portfolio import PaperPortfolioService
 from app.services.paper_trade import PaperTradeService
 
 router = APIRouter(prefix="/paper", tags=["paper"])
@@ -21,6 +30,17 @@ async def get_account(
     service: Annotated[PaperAccountService, Depends(get_paper_account_service)],
 ) -> SuccessResponse[PaperAccount]:
     return SuccessResponse(data=await service.get_account(auth.user_id))
+
+
+@router.get("/portfolio", response_model=PaperPortfolioResponse)
+async def get_portfolio(
+    auth: Annotated[AuthContext, Depends(get_auth_context)],
+    service: Annotated[PaperPortfolioService, Depends(get_paper_portfolio_service)],
+) -> PaperPortfolioResponse:
+    portfolio = await service.get_portfolio(auth.user_id)
+    return PaperPortfolioResponse(
+        data=portfolio, meta=PortfolioMeta(count=len(portfolio.holdings))
+    )
 
 
 @router.post(

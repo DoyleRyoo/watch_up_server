@@ -100,3 +100,49 @@ class TradeRequest(APIModel):
             ):
                 raise ValueError("quantity must be a positive decimal string")
         return self
+
+
+class PortfolioPriceStatus(StrEnum):
+    FRESH = "FRESH"
+    STALE = "STALE"
+    PRICE_ERROR = "PRICE_ERROR"
+
+
+class ValuationStatus(StrEnum):
+    FRESH = "FRESH"
+    STALE = "STALE"
+    PARTIAL = "PARTIAL"
+
+
+class PaperHolding(APIModel):
+    market_code: str
+    korean_name: str
+    english_name: str
+    quantity: str
+    cost_basis_krw: str
+    avg_price_krw: str | None
+    current_price: str | None
+    price_status: PortfolioPriceStatus
+    unrealized_pnl_krw: str | None
+    value_krw: str | None
+
+
+class PaperPortfolio(APIModel):
+    cash_balance_krw: str
+    holdings: list[PaperHolding]
+    total_holdings_value_krw: str | None
+    total_unrealized_pnl_krw: str | None
+    total_realized_pnl_krw: str
+    total_assets_krw: str | None
+    total_pnl_krw: str | None
+    total_return_rate: str | None
+    valuation_status: ValuationStatus
+
+
+class PortfolioMeta(APIModel):
+    count: int = Field(ge=0)
+
+
+class PaperPortfolioResponse(APIModel):
+    data: PaperPortfolio
+    meta: PortfolioMeta

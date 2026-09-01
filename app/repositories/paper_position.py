@@ -65,3 +65,24 @@ class PaperPositionRepository:
             cost_basis,
             realized_pnl,
         )
+
+    async def list_positive(
+        self, connection: asyncpg.Connection, user_id: UUID
+    ) -> tuple[PositionRow, ...]:
+        rows = await connection.fetch(
+            "select account_id, market_code, quantity, cost_basis_krw, realized_pnl_krw "
+            "from public.paper_positions where account_id = $1 and quantity > 0 "
+            "order by market_code asc",
+            user_id,
+        )
+        return tuple(_position(row) for row in rows)
+
+    async def sum_realized(
+        self, connection: asyncpg.Connection, user_id: UUID
+    ) -> Decimal:
+        value = await connection.fetchval(
+            "select coalesce(sum(realized_pnl_krw), 0) from public.paper_positions "
+            "where account_id = $1",
+            user_id,
+        )
+        return Decimal(value)
