@@ -29,7 +29,7 @@ def test_allowed_origin_preflight_uses_restricted_policy() -> None:
     }
     assert returned_methods == set(ALLOWED_CORS_METHODS)
     assert ALLOWED_CORS_METHODS == ["GET", "POST", "DELETE", "OPTIONS"]
-    assert ALLOWED_CORS_HEADERS == ["Authorization", "Content-Type"]
+    assert ALLOWED_CORS_HEADERS == ["Authorization", "Content-Type", "Idempotency-Key"]
     assert "access-control-allow-credentials" not in response.headers
 
 

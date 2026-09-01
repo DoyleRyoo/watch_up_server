@@ -802,4 +802,6 @@ def test_production_router_still_has_no_upbit_test_endpoint() -> None:
         "/api/health",
         "/api/coins/search",
         "/api/coins/{marketCode}/chart",
+        "/api/paper/account",
+        "/api/paper/top-ups",
     }

@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     supabase_issuer: str = ""
     supabase_audience: str = "authenticated"
 
+    database_session_url: str = ""
+    database_role: str = "authenticated"
+    database_pool_min_size: int = Field(default=1, ge=1)
+    database_pool_max_size: int = Field(default=5, ge=1)
+
     redis_url: str = ""
     redis_timeout_seconds: float = Field(default=2, gt=0)
 
@@ -32,6 +37,31 @@ class Settings(BaseSettings):
     upbit_max_retries: int = Field(default=2, ge=0)
 
     cors_allowed_origins: list[str] = Field(default_factory=list)
+
+    @field_validator("database_session_url")
+    @classmethod
+    def validate_database_session_url(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            return normalized
+        parsed = urlsplit(normalized)
+        if parsed.scheme not in {"postgres", "postgresql"} or not parsed.hostname:
+            raise ValueError("DATABASE_SESSION_URL must be a PostgreSQL URL")
+        return normalized
+
+    @field_validator("database_role")
+    @classmethod
+    def validate_database_role(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized or not normalized.replace("_", "a").isalnum():
+            raise ValueError("DATABASE_ROLE must be a PostgreSQL identifier")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_database_pool_sizes(self) -> "Settings":
+        if self.database_pool_min_size > self.database_pool_max_size:
+            raise ValueError("DATABASE_POOL_MIN_SIZE must not exceed max size")
+        return self
 
     @field_validator("upbit_base_url")
     @classmethod

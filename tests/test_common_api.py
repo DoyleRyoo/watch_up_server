@@ -51,6 +51,11 @@ EXPECTED_STATUS_CODES = {
     ErrorCode.UPBIT_TEMPORARILY_BLOCKED: 503,
     ErrorCode.REDIS_UNAVAILABLE: 503,
     ErrorCode.CACHE_REFRESH_IN_PROGRESS: 503,
+    ErrorCode.IDEMPOTENCY_KEY_REQUIRED: 400,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED: 409,
+    ErrorCode.TOP_UP_AMOUNT_OUT_OF_RANGE: 400,
+    ErrorCode.TOP_UP_LIFETIME_LIMIT_EXCEEDED: 400,
+    ErrorCode.DATABASE_UNAVAILABLE: 503,
     ErrorCode.INTERNAL_SERVER_ERROR: 500,
 }
 
@@ -266,6 +271,8 @@ def test_production_router_contains_no_test_endpoint(test_app: FastAPI) -> None:
         "/api/health",
         "/api/coins/search",
         "/api/coins/{marketCode}/chart",
+        "/api/paper/account",
+        "/api/paper/top-ups",
     }
 
 

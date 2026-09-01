@@ -4,6 +4,7 @@ from fastapi import Request
 
 from app.services.chart import ChartService
 from app.services.market_list import MarketListService
+from app.services.paper_account import PaperAccountService
 from app.services.price import PriceService
 
 
@@ -28,8 +29,16 @@ def get_price_service(request: Request) -> PriceService:
     return service
 
 
+def get_paper_account_service(request: Request) -> PaperAccountService:
+    service: PaperAccountService | None = request.app.state.paper_account_service
+    if service is None:
+        raise RuntimeError("Paper account service is not initialized")
+    return service
+
+
 __all__ = [
     "get_chart_service",
     "get_market_list_service",
+    "get_paper_account_service",
     "get_price_service",
 ]
